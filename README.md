@@ -6,6 +6,20 @@ Personal Codex skills for reusable workflows.
 
 - `gamocosm-server-commands`: Send Minecraft server commands through the Gamocosm web console and verify the result.
 
+## Development
+
+List skills:
+
+```sh
+bash scripts/list-skills.sh
+```
+
+Validate the repo:
+
+```sh
+bash scripts/validate-skills.sh
+```
+
 ## Install
 
 Install a skill from this repo with the Codex skill installer:
@@ -13,4 +27,3 @@ Install a skill from this repo with the Codex skill installer:
 ```sh
 scripts/install-skill-from-github.py --repo micahlee/skills --path skills/gamocosm-server-commands
 ```
-
