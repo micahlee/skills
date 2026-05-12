@@ -1,6 +1,6 @@
 # Skills
 
-Personal Codex skills for reusable workflows.
+Personal agent skills for reusable workflows.
 
 ## Available Skills
 
@@ -38,7 +38,13 @@ bash scripts/validate-skills.sh
 
 ## Install
 
-Install a skill from this repo with the Codex skill installer:
+Install the skills collection:
+
+```sh
+npx skills@latest add micahlee/skills
+```
+
+Install a single skill from this repo with the Codex skill installer:
 
 ```sh
 scripts/install-skill-from-github.py --repo micahlee/skills --path skills/worship-leading/song-block

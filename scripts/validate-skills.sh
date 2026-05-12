@@ -6,7 +6,9 @@ cd "$repo"
 
 fail=0
 names_file="$(mktemp)"
-trap 'rm -f "$names_file"' EXIT
+manifest_skills_file="$(mktemp)"
+found_skills_file="$(mktemp)"
+trap 'rm -f "$names_file" "$manifest_skills_file" "$found_skills_file"' EXIT
 
 error() {
   local file="$1"
@@ -59,6 +61,10 @@ while IFS= read -r skill_file; do
   fi
 done < <(find skills -mindepth 2 -maxdepth 3 -name SKILL.md -type f | sort)
 
+find skills -mindepth 2 -maxdepth 3 -name SKILL.md -type f \
+  | sed 's#/SKILL.md$##' \
+  | sort > "$found_skills_file"
+
 if [ ! -s "$names_file" ]; then
   echo "::error::No skills found"
   exit 1
@@ -72,5 +78,32 @@ if [ -n "$duplicates" ]; then
   fail=1
 fi
 
-exit "$fail"
+if [ -f .claude-plugin/plugin.json ]; then
+  python3 - <<'PY' > "$manifest_skills_file"
+import json
 
+with open(".claude-plugin/plugin.json", encoding="utf-8") as f:
+    manifest = json.load(f)
+
+for skill in manifest.get("skills", []):
+    print(skill.removeprefix("./").rstrip("/"))
+PY
+
+  while IFS= read -r skill_dir; do
+    if [ -z "$skill_dir" ]; then
+      continue
+    fi
+    if [ ! -f "$skill_dir/SKILL.md" ]; then
+      error ".claude-plugin/plugin.json" "Manifest skill path is missing SKILL.md: $skill_dir"
+    fi
+  done < "$manifest_skills_file"
+
+  missing_manifest_entries="$(comm -23 "$found_skills_file" <(sort "$manifest_skills_file"))"
+  if [ -n "$missing_manifest_entries" ]; then
+    while IFS= read -r skill_dir; do
+      [ -n "$skill_dir" ] && error ".claude-plugin/plugin.json" "Manifest missing skill path: ./$skill_dir"
+    done <<< "$missing_manifest_entries"
+  fi
+fi
+
+exit "$fail"
