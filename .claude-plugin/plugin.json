@@ -11,6 +11,7 @@
   ],
   "skills": [
     "./skills/gamocosm-server-commands",
+    "./skills/finance/monarch-money",
     "./skills/meal-planning/plan-to-eat-curate",
     "./skills/meal-planning/plan-to-eat-notes",
     "./skills/personal/daily-note",
