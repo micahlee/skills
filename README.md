@@ -5,6 +5,7 @@ Personal Codex skills for reusable workflows.
 ## Available Skills
 
 - `gamocosm-server-commands`: Send Minecraft server commands through the Gamocosm web console and verify the result.
+- `plan-to-eat-suggestions`: Maintain a ranked "next meals to make" Google Doc from Plan to Eat history.
 
 ## Development
 
