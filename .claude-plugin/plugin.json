@@ -1,0 +1,24 @@
+{
+  "name": "micahlee-skills",
+  "version": "0.1.0",
+  "description": "Personal agent skills for reusable workflows.",
+  "repository": "https://github.com/micahlee/skills",
+  "license": "MIT",
+  "keywords": [
+    "agent-skills",
+    "automation",
+    "skills"
+  ],
+  "skills": [
+    "./skills/gamocosm-server-commands",
+    "./skills/meal-planning/plan-to-eat-curate",
+    "./skills/meal-planning/plan-to-eat-notes",
+    "./skills/personal/daily-note",
+    "./skills/worship-leading/chord-chart-builder",
+    "./skills/worship-leading/create-monthly-worship-plan",
+    "./skills/worship-leading/schedule-music-team",
+    "./skills/worship-leading/schedule-songs",
+    "./skills/worship-leading/schedule-worship-leaders",
+    "./skills/worship-leading/song-block"
+  ]
+}
