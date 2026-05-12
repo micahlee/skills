@@ -1,0 +1,15 @@
+{
+  "name": "micahlee-skills",
+  "version": "0.1.0",
+  "description": "Personal agent skills for reusable workflows.",
+  "repository": "https://github.com/micahlee/skills",
+  "license": "MIT",
+  "keywords": [
+    "agent-skills",
+    "automation",
+    "skills"
+  ],
+  "skills": [
+    "./skills/gamocosm-server-commands"
+  ]
+}
