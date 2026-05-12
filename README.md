@@ -9,6 +9,10 @@ Personal Codex skills for reusable workflows.
 - `gamocosm-server-commands`: Send Minecraft server commands through the Gamocosm web console and verify the result.
 - `daily-note`: Create or populate a daily note from recurring tasks, carryovers, project notes, and meal context.
 
+### Finance
+
+- `monarch-money`: Analyze Monarch Money accounts, transactions, cashflow, budgets, recurring charges, and investments with the `mmoney` CLI.
+
 ### Worship Leading
 
 - `create-monthly-worship-plan`: Create a monthly worship team planning todo list in Basecamp.
