@@ -11,6 +11,7 @@ Personal Codex skills for reusable workflows.
 
 ### Worship Leading
 
+- `chord-chart-builder`: Build Planning Center native Lyrics & Chords charts from PDFs, images, pasted charts, or PCO attachments.
 - `create-monthly-worship-plan`: Create a monthly worship team planning todo list in Basecamp.
 - `schedule-music-team`: Schedule the music team on Planning Center for a given month.
 - `schedule-songs`: Schedule worship songs into Planning Center services for a sermon series.
