@@ -13,6 +13,20 @@ Run `python3 scripts/onboard.py` from this skill directory to collect the vault 
 
 **IMPORTANT:** Always use the `obsidian` CLI to read and write vault files — never use direct filesystem reads/writes (`cat`, `Write` tool, etc.). This avoids conflicts with Obsidian's live sync and cache.
 
+## Planning Note Resolution
+
+Before reading, creating, appending, or replacing the target daily/planning note, check whether `planning_note_cli` is configured in `~/.config/agent-skills/daily-note.json`.
+
+When configured, resolve the target date through Planning Notes first:
+
+```bash
+node "$planning_note_cli" ensure YYYY-MM-DD --vault "$vault_path"
+```
+
+Parse the returned JSON and use `block.path` as the target note path for all subsequent `obsidian read`, `obsidian create`, and `obsidian append` operations. Do not derive the target path directly from `daily_note_pattern` when planning-note resolution is configured.
+
+For dates on or after the planning-note effective date, `ensure` creates the canonical planning note, compatibility stubs for non-anchor dates, and `Tasks/Planning Blocks.json` as needed. For legacy dates, use the returned `block.path` but do not expect `ensure` to create or persist a planning block.
+
 **IMPORTANT:** Never copy raw Templater syntax (`<%*`, `tp.`, etc.) into the daily note. Always render actual content.
 
 ---
