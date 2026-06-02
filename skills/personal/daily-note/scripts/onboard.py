@@ -10,6 +10,7 @@ QUESTIONS = [
     ("recurring_tasks_note", "Recurring tasks note path relative to vault", "Tasks/Recurring.md"),
     ("backlog_note", "Backlog note path relative to vault", "Tasks/Backlog.md"),
     ("projects_folder", "Projects folder path relative to vault", "01 - PERSONAL/01 - PROJECTS"),
+    ("planning_note_cli", "Optional Planning Notes CLI script path", ""),
     ("external_tasks_command", "Optional external task command template", ""),
     ("boundaries", "Task boundaries or exclusions to respect", ""),
 ]
@@ -44,4 +45,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
