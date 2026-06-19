@@ -8,6 +8,7 @@ Personal agent skills for reusable workflows.
 
 - `gamocosm-server-commands`: Send Minecraft server commands through the Gamocosm web console and verify the result.
 - `daily-note`: Create or populate a daily note from recurring tasks, carryovers, project notes, and meal context.
+- `progress-check`: Check Daily Note priority tasks at scheduled checkpoints and publish compact progress-nudge events only when deterministic risk rules say a nudge is warranted.
 
 ### Finance
 

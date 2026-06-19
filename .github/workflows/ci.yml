@@ -21,6 +21,9 @@ jobs:
       - name: Validate skills
         run: bash scripts/validate-skills.sh
 
+      - name: Test progress-check
+        run: python3 skills/personal/progress-check/tests/test_progress_check.py
+
   secrets:
     name: Detect secrets
     runs-on: ubuntu-latest
