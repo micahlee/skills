@@ -15,6 +15,7 @@
     "./skills/meal-planning/plan-to-eat-curate",
     "./skills/meal-planning/plan-to-eat-notes",
     "./skills/personal/daily-note",
+    "./skills/personal/progress-check",
     "./skills/worship-leading/chord-chart-builder",
     "./skills/worship-leading/create-monthly-worship-plan",
     "./skills/worship-leading/schedule-music-team",
