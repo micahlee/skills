@@ -1,0 +1,4 @@
+interface:
+  display_name: "Next Run Up"
+  short_description: "Choose the best next runs from recent training"
+  default_prompt: "Use $next-run-up to recommend my best next run options from recent workouts and my training plan."
