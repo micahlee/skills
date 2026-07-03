@@ -9,10 +9,27 @@ Personal agent skills for reusable workflows.
 - `gamocosm-server-commands`: Send Minecraft server commands through the Gamocosm web console and verify the result.
 - `daily-note`: Create or populate a daily note from recurring tasks, carryovers, project notes, and meal context.
 - `progress-check`: Check Daily Note priority tasks at scheduled checkpoints and publish compact progress-nudge events only when deterministic risk rules say a nudge is warranted.
+- `daily-dream`: Synthesize daily learnings from notes, health/food/fitness, calendar/email, and other bounded sources; prepare tomorrow's nudge and monthly rollups.
+- `morning-briefing`: Render a compact morning briefing from daily-note/dream context, light fresh deltas, and goal-aware signals; write the daily note block and return a Telegram-ready message.
+- `bible-journal-import`: Import handwritten Bible study or sermon notes into the Obsidian Bible Study Journal.
+- `coma-bible-study`: Produce concise COMA Bible study prompts from Scripture passages.
+- `obsidian-food-tracker`: Maintain the Obsidian food logging workflow using the Food Tracker plugin.
+- `process-inbox`: Process the Obsidian Inbox into PARA destinations, task lists, shopping lists, reading lists, daily notes, and calendar entries.
+- `instagram-read`: Read Instagram reel/post metadata from saved URLs using the local `instagram-cli` session.
+- `next-run-up`: Recommend the next running workout from recent training context and recovery signals.
+- `run-analysis`: Analyze running workout data and identify training, pacing, cadence, and fitness trends.
+- `run-training-plan`: Build and maintain running training plans from goals, constraints, and workout history.
+- `workout-prep`: Generate structured warmups and cooldowns from Fitbod screenshots, workout lists, or `/workout-prep` requests.
+- `gws`: Use the local Google Workspace CLI for Drive, Docs, Sheets, Gmail, Calendar, and related Workspace tasks.
 
 ### Finance
 
 - `monarch-money`: Analyze Monarch Money accounts, transactions, cashflow, budgets, recurring charges, and investments with the `mmoney` CLI.
+
+### Music
+
+- `sonos`: Control Sonos speakers, rooms, groups, queue, scenes, favorites, and playback with the `sonos` CLI.
+- `spotify`: Control Spotify playback, search, queue, devices, and library state with the `spogo` CLI.
 
 ### Worship Leading
 
