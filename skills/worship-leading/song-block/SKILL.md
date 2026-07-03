@@ -1,6 +1,6 @@
 ---
 name: song-block
-description: Plan song blocks for a church sermon series. Given sermon texts, titles, and main ideas, select a ranked pool of worship songs covering liturgical roles. Outputs a Google Doc. Triggers on phrases like "plan a song block", "plan worship music", "build a song block", "select songs for [series]", or any request to plan music for a series.
+description: Plan song blocks for a church sermon series. Given sermon texts, titles, and main ideas, select a ranked pool of worship songs covering liturgical roles, including upbeat adoration openers, sacramental Lord's Supper hymns, sermon-text response songs, and older/classical hymn coverage. Outputs a Google Doc. Triggers on phrases like "plan a song block", "plan worship music", "build a song block", "select songs for [series]", or any request to plan music for a series.
 ---
 
 # Song Block Planning
@@ -83,6 +83,17 @@ for t in sorted(active): print(" ", t)
 - `[recent]` — 1–2 uses in the past 8 weeks
 - `[deprioritized]` — 3+ uses in 20 weeks, or used in the past 4 weeks
 
+**Tempo/BPM data:**
+- BPM is arrangement-level in PCO. Fetch it from arrangement metadata when evaluating opener suitability.
+- PCO BPM may be a click-track value rather than the felt pulse; many arrangements use a doubled BPM for metronome subdivisions.
+- Raw plan exports expose BPM and meter for scheduled arrangements:
+  ```bash
+  pco plans export <plan_id> --include-raw --json
+  ```
+- If the CLI search output does not expose BPM for a candidate, query the song's arrangements from the PCO API or inspect a recent plan that used the same arrangement.
+- Record both raw PCO BPM and normalized/felt BPM when the raw number is clearly doubled (for example, 146 raw may feel like 73). Use felt pulse and musical character, not raw BPM alone, when ranking openers.
+- Record `BPM unknown` when it cannot be found, and do not rank that song as a primary upbeat opener without a user-confirmed feel.
+
 ---
 
 ## Step 3: Plan the Song Pool
@@ -92,23 +103,36 @@ Each service follows this order. Confession does not always require a song.
 
 | Slot | Role | Notes |
 |------|------|-------|
-| 1 | **Adoration** | Bold, celebratory opening |
+| 1 | **Adoration** | Upbeat, joyful opening that prompts congregational praise |
 | 2 | **Confession** | Slow/contemplative, or corporate prayer/reading |
 | 3 | **Assurance** | Response to confession — grace, gospel, union with Christ |
 | 4 | **Thanksgiving / Petition** | Optional; some services omit |
-| 5 | **Charge / Benediction** | Send-off song; upbeat or creedal |
+| 5 | **Lord's Supper / Sermon Response / Charge** | Include sacramental hymns and songs with direct sermon-text fit |
+
+### Service Set Heuristics
+
+- Open with upbeat adoration whenever possible. Save reflective, meditative, and slower songs for confession, assurance, Lord's Supper, or response slots. Use BPM and meter as guardrails, but normalize doubled click-track BPM before judging feel; generally prefer a clear upbeat felt pulse, while interpreting 6/8, cut time, and half-time arrangements by musical feel rather than raw BPM alone.
+- Sequence the middle of the set by descending energy: Song 2 should be equal or lower energy than the opener, and Song 3 should be equal or lower energy than Song 2.
+- Include Lord's Supper options that are clearly connected to the sacrament: Christ's body and blood, atonement, communion, union with Christ, pardon, remembrance, and the cross.
+- Include songs that closely track individual sermon texts, not only broad series themes. A song that quotes or strongly mirrors a specific passage is especially valuable for the post-sermon response.
+- Ensure enough older/classical hymns are in the pool for roughly one per service set. Do not build a pool made only of modern worship songs and modern hymns.
+- Build pools with enough depth for variety, but expect the best songs to repeat 2-3 times per planning season. Repetition helps the congregation learn the series vocabulary; a strong song may normally be used up to 3 times across a series/month.
 
 ### Pool Sizing
 - **Pool size** = (sermons × 3 avg songs per service) ÷ avg uses per song (2.5) + 5 extra = roughly `sermons × 2`
 - For an 11-sermon series: aim for 20–22 songs
 - For a 6-sermon series: aim for 12–14 songs
+- Add extra pool depth when needed to cover upbeat openers, sacramental hymns, direct sermon-response songs, and older/classical hymn coverage.
 
 ### Pool Ranking Criteria
 Rank songs 1–N by combined score:
 
 1. **Thematic fit** (primary) — How directly does this song address the series' key themes? A song that quotes or mirrors the passage scores highest.
-2. **Liturgical role coverage** (secondary) — Does adding this song fill a role that's underserved in the current pool?
-3. **Recency penalty** — Deprioritized songs score lower.
+2. **Sermon-text fit** — Does this song strongly connect to one or more specific sermons, especially as a post-sermon response?
+3. **Tempo/energy fit** — Does the arrangement BPM, normalized/felt pulse, and musical character support its intended slot, especially upbeat adoration openers?
+4. **Liturgical role coverage** — Does adding this song fill an underserved role: upbeat adoration opener, confession, assurance, Lord's Supper, charge, or response?
+5. **Hymn coverage** — Does the pool provide enough older/classical hymns for about one per service set?
+6. **Recency penalty** — Deprioritized songs score lower.
 
 Assign tiers:
 - **Tier 1**: Essential — would definitely use, strong thematic connection
@@ -133,10 +157,11 @@ Create a JSON file with this structure (no `sermons` or `usage_summary` needed),
       "title": "Song Title",
       "author": "Author Name",
       "tempo": "Slow / Medium / Upbeat",
+      "bpm": "raw PCO BPM and normalized/felt BPM, or unknown",
       "recency_tag": "[fresh]",
       "recency_detail": "last used Dec 2025",
       "roles": "Assurance / Charge",
-      "description": "Why this song fits the series — specific textual or thematic connection."
+      "description": "Why this song fits the series — include specific textual or thematic connection, and note if it is a strong opener, Lord's Supper hymn, sermon response, or older/classical hymn."
     }
   ]
 }
