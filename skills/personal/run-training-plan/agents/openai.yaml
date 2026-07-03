@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run Training Plan"
+  short_description: "Refresh a 30-day running plan from Axon and goals"
+  default_prompt: "Use $run-training-plan to refresh my next 30-day running plan from Obsidian goals and Axon fitness data."
