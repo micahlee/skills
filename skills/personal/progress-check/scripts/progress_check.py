@@ -240,8 +240,10 @@ def nearest_section(headings: dict[int, str]) -> str:
 
 
 def task_priority(text: str, section: str, block: str) -> str:
-    section_tail = section.split(">")[-1].strip().lower()
-    if block == "focus" and section_tail in {"must", "should", "could"}:
+    section_parts = [part.strip().lower() for part in section.split(">") if part.strip()]
+    section_tail = section_parts[-1] if section_parts else ""
+    in_focus_section = block == "focus" or "focus tasks" in section_parts
+    if in_focus_section and section_tail in {"must", "should", "could"}:
         return section_tail
     match = PRIORITY_TAG_RE.search(text)
     if match:

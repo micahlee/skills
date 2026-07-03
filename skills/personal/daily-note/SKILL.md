@@ -5,7 +5,7 @@ description: Create or populate a personal daily note from recurring tasks, carr
 
 # Daily Note Creation
 
-Vault path: configure this for the user's note system, for example `~/vault/Daily Notes/YYYY/MM/YYYY-MM-DD.md`.
+Create or refresh the user's daily note from canonical task sources, calendar context, recurring routines, and external task systems. Treat the daily note as a work surface, not the task source of truth.
 
 ## Onboarding
 
@@ -13,11 +13,24 @@ Run `python3 scripts/onboard.py` from this skill directory to collect the vault 
 
 **IMPORTANT:** Always use the `obsidian` CLI to read and write vault files — never use direct filesystem reads/writes (`cat`, `Write` tool, etc.). This avoids conflicts with Obsidian's live sync and cache.
 
+In Codex, Obsidian CLI commands must be run outside the filesystem sandbox if the sandboxed command reports `The CLI is unable to find Obsidian. Please make sure Obsidian is running and try again.` The CLI talks to the already-running Obsidian app through `~/.obsidian-cli.sock`; sandboxed commands may be unable to use that socket even when Obsidian is open. Retry the same `obsidian ...` command with escalation rather than falling back to direct vault file edits or launching Obsidian.
+
+Prefer Obsidian-native commands such as:
+
+- `obsidian vault`
+- `obsidian daily:path`
+- `obsidian daily:read`
+- `obsidian read path="Daily Notes/YYYY/MM/YYYY-MM-DD.md"`
+- `obsidian create path="Daily Notes/YYYY/MM/YYYY-MM-DD.md" content="..." overwrite`
+- `obsidian append path="Daily Notes/YYYY/MM/YYYY-MM-DD.md" content="..."`
+
+When multiple vaults are present, pass `vault="Micah's Vault"` explicitly.
+
 ## Planning Note Resolution
 
-Before reading, creating, appending, or replacing the target daily/planning note, check whether `planning_note_cli` is configured in `~/.config/agent-skills/daily-note.json`.
+Before reading, creating, appending, or replacing the target daily/planning note, resolve the target date through the configured Planning Notes command.
 
-When configured, resolve the target date through Planning Notes first:
+Use the configured `planning_note_cli` from `~/.config/agent-skills/daily-note.json` when present:
 
 ```bash
 node "$planning_note_cli" ensure YYYY-MM-DD --vault "$vault_path"
@@ -31,63 +44,38 @@ For dates on or after the planning-note effective date, `ensure` creates the can
 
 ---
 
-## Task Population Rules
+## Required References
 
-### 1. Carryovers
-- Copy unchecked `[ ]` tasks from previous day's note
-- SKIP tasks that are date-specific (e.g. "drop off at 8:30am", "call X at 2pm", "appointment today")
-- SKIP tasks that are clearly no longer relevant
-- SKIP checked `[x]` tasks
+Read these references before changing tasks or rendering task sections:
 
-### 2. Recurring Tasks — PARSE CADENCE ANNOTATIONS
-Read the configured recurring-tasks note, such as `Tasks/Recurring.md`. For each task, evaluate its `cadence:` tag against the target date:
+- [references/task-model.md](references/task-model.md) for task identity, source links, source ownership, and manual task handling.
+- [references/reconciliation.md](references/reconciliation.md) for the run order, completion sync, recurring task advancement, manual task promotion, and failure policy.
+- [references/selection.md](references/selection.md) for task caps, scoring, routines, stuck-task escalation, and agent candidates.
+- [references/events-and-logs.md](references/events-and-logs.md) for the event outbox, run logs, daily-note sidecars, snapshots, and Axon event contracts.
+- [references/note-format.md](references/note-format.md) for clean human-facing daily-note sections and sidecar metadata.
 
-| Cadence | Rule |
-|---|---|
-| `daily` | Always include |
-| `weekly:Mon` / `weekly:Wed` / etc. | Include only on that day of week |
-| `biweekly:Fri` | Every other Friday — check last occurrence to determine if this week |
-| `monthly:1st` | Include on the 1st of the month |
-| `monthly:19th` | Include on the 19th of the month |
-| `monthly:20th` | Include on the 20th of the month |
-| `quarterly` | Every 3 months — use notes field for next date |
-| `semiannual` | Every 6 months — use notes field for next date |
-| `annual:Apr-1` | Include on that date each year |
-| `bimonthly` | Every 2 months — use notes field for pattern |
+## Core Pipeline
 
-For `biweekly`, `quarterly`, `semiannual`, `annual`, and `bimonthly`, always check the `notes:` field for the specific next date before including.
+Run daily-note task processing in this order:
 
-Do NOT include recurring tasks whose next date hasn't arrived yet.
+1. Load config, resolve/ensure the target planning note path, load the daily-note task registry and per-note sidecar, and read the current target note if it exists.
+2. Reconcile completed sourced daily-note task instances from the sidecar back to canonical sources, with legacy inline `task-ref` comments as a migration fallback only.
+3. Advance completed recurring source tasks to the next future due date using fixed-schedule recurrence.
+4. Promote unresolved manual daily-note tasks into canonical Obsidian task sources when confidence is high.
+5. Publish decision-requested events for unresolved, stuck, vague, or repeatedly skipped tasks.
+6. Update the task registry skip/completion/decision state.
+7. Select bounded Commitments, Focus Tasks, Routines, Needs Decision items, Agent Queue candidates, and Context.
+8. Render clean, human-facing daily-note sections without HTML ownership markers or hidden inline task metadata; preserve human-written content and no-ref human tasks.
+9. Write the per-note sidecar, event outbox, run log, and snapshots for changed canonical files.
 
-### 3. Backlog
-- Read the configured backlog note, such as `Tasks/Backlog.md`
-- Surface 1-2 p1 items not yet in the daily note
-- Surface relevant p2 items if timely (upcoming deadlines, seasonal tasks)
-- Keep it to 1-2 items max — don't flood
+## Operating Rules
 
-### 4. Projects
-- Scan the configured projects folder for active projects
-- Pull in next actionable task from any project where relevant
-- Keep it to 1 item unless something is urgent
-
-### 5. Optional External Tasks
-- If the user has a task CLI such as Basecamp, Google Tasks, or another project tool configured, pull only tasks assigned to the user that are overdue or due within the next 7 days.
-- Add external tasks with due dates noted and keep the list short. Do not dump an entire project into the daily note.
-
----
-
-## Task Ordering
-- Personal before Church (within each priority section)
-- Must → Should → Could priority order
-- Within each section: unchecked above checked (heartbeat maintains this)
-
-## Priority Mapping from Recurring.md
-- `p1` → Must
-- `p2` → Should
-- `p3` / `p4` → Could
-
-## Other Rules
-- Carry forward stable personal sections from the previous day unless the user explicitly updates them.
-- Respect the user's configured boundaries for work, personal, household, and faith/community tasks.
-- Date-specific tasks (appointments, pickups) go in Must with time noted
-- Dinner task: check Plan to Eat planner for what's scheduled; link to recipe URL `https://app.plantoeat.com/recipes/{id}`
+- Prefer deterministic scripts or structured parsing for task refs, recurrence advancement, registry updates, and event IDs. Do not rely on task text when sidecar metadata or legacy `task-ref` data exists.
+- Keep daily notes clean. Do not emit `<!-- daily-note:... -->` markers or hidden same-line `task-ref` comments in newly rendered notes.
+- Every generated checkbox should include a visible source link when there is a useful source. Store its `task_ref`, completion strategy, rendered text, source link, section, and line/fingerprint in the per-note sidecar.
+- Daily note task sections are capped work surfaces, not backlog dumps.
+- In the scheduled Axon morning workflow, Telegram delivery is not the daily-note final response. Let `/morning-briefing send` publish the `personal.morning-briefing` domain event with `payload.message`; Axon routes that compact event to Telegram through a subscriber workflow.
+- Calendar commitments and meal/weather/context are not Focus Tasks.
+- Repeated unchecked appearances are treated as skip signals and eventually become decision requests.
+- Do not delete or clean up historical daily-note task instances.
+- If a subsystem fails, degrade by subsystem when safe and record the warning in the run log. Mention it in the daily note only when the warning materially changes how Micah should trust or use the day plan.

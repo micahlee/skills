@@ -18,6 +18,7 @@ SPEC.loader.exec_module(progress_check)
 
 def main() -> int:
     test_midday_must_risk_requires_nudge()
+    test_clean_heading_must_risk_requires_nudge()
     test_completed_must_is_no_nudge()
     test_afternoon_due_today_risk()
     test_weekend_could_task_does_not_nudge()
@@ -35,6 +36,15 @@ def test_midday_must_risk_requires_nudge() -> None:
     assert result["category"] == "must", result
     assert result["task_refs"][0]["task_id"] == "t1", result
     assert result["task_refs"][0]["priority"] == "must", result
+
+
+def test_clean_heading_must_risk_requires_nudge() -> None:
+    with fixture("2026-06-18", focus_must("- [ ] Write first draft"), legacy_markers=False) as env:
+        result = analyze(env, "midday")
+    assert result["status"] == "nudge_required", result
+    assert result["category"] == "must", result
+    assert result["task_refs"][0]["priority"] == "must", result
+    assert result["task_refs"][0]["task_id"].startswith("daily-note:"), result
 
 
 def test_completed_must_is_no_nudge() -> None:
@@ -99,9 +109,10 @@ def test_event_payload_requires_generated_message() -> None:
 
 
 class fixture:
-    def __init__(self, local_date: str, body: str) -> None:
+    def __init__(self, local_date: str, body: str, legacy_markers: bool = True) -> None:
         self.local_date = local_date
         self.body = body
+        self.legacy_markers = legacy_markers
 
     def __enter__(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -110,20 +121,14 @@ class fixture:
         self.state = root / "state.json"
         note = root / "vault" / "Daily Notes" / self.local_date[:4] / self.local_date[5:7] / f"{self.local_date}.md"
         note.parent.mkdir(parents=True)
-        note.write_text(
-            "\n".join(
-                [
-                    "# Daily Note",
-                    "",
-                    "## Focus Tasks",
-                    "<!-- daily-note:focus:start -->",
-                    self.body,
-                    "<!-- daily-note:focus:end -->",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
+        lines = ["# Daily Note", "", "## Focus Tasks"]
+        if self.legacy_markers:
+            lines.append("<!-- daily-note:focus:start -->")
+        lines.append(self.body)
+        if self.legacy_markers:
+            lines.append("<!-- daily-note:focus:end -->")
+        lines.append("")
+        note.write_text("\n".join(lines), encoding="utf-8")
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

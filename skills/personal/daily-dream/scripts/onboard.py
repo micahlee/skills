@@ -3,20 +3,19 @@ import json
 import os
 from pathlib import Path
 
-SKILL_NAME = "daily-note"
+SKILL_NAME = "daily-dream"
 QUESTIONS = [
     ("vault_path", "Obsidian vault path", "~/vault"),
     ("daily_note_pattern", "Daily note path pattern relative to vault", "Daily Notes/YYYY/MM/YYYY-MM-DD.md"),
-    ("recurring_tasks_note", "Recurring tasks note path relative to vault", "Tasks/Recurring.md"),
-    ("backlog_note", "Backlog note path relative to vault", "Tasks/Backlog.md"),
-    ("projects_folder", "Projects folder path relative to vault", "01 - PERSONAL/01 - PROJECTS"),
-    ("task_registry_path", "Daily-note task registry path relative to vault", "Tasks/Daily Note State.json"),
-    ("daily_note_state_folder", "Per-note daily-note sidecar folder relative to vault", "Tasks/Daily Note State"),
-    ("event_outbox_path", "Daily-note event outbox path relative to vault", "Tasks/Daily Note Event Outbox.jsonl"),
-    ("run_log_folder", "Daily-note run log folder relative to vault", "Tasks/Daily Note Runs"),
-    ("planning_note_cli", "Optional Planning Notes CLI script path", ""),
-    ("external_tasks_command", "Optional external task command template", ""),
-    ("boundaries", "Task boundaries or exclusions to respect", ""),
+    ("monthly_note_pattern", "Monthly note path pattern relative to vault", "Daily Notes/YYYY/MM/MM.md"),
+    ("daily_template_path", "Daily note template path relative to vault", "Templates/DailyNote.md"),
+    ("month_template_path", "Month note template path relative to vault", "Templates/Month.md"),
+    ("event_outbox_path", "Dream event outbox path relative to vault", "Tasks/Dream Event Outbox.jsonl"),
+    ("run_log_folder", "Dream run log folder relative to vault", "Tasks/Dream Runs"),
+    ("google_workspace_command", "Optional Google Workspace CLI command", "gws"),
+    ("axon_events_command", "Optional Axon event query command", ""),
+    ("health_summary_command", "Optional health/fitness summary command", ""),
+    ("boundaries", "Reflection/source boundaries or exclusions to respect", ""),
 ]
 
 
@@ -44,7 +43,7 @@ def main():
     path.write_text(json.dumps(config, indent=2) + "\n")
     path.chmod(0o600)
     print(f"Wrote {path}")
-    print("Use this config to replace placeholders in the daily-note skill.")
+    print("Use this config before running daily-dream synthesis.")
 
 
 if __name__ == "__main__":
