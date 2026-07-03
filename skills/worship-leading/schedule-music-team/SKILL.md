@@ -53,11 +53,14 @@ From the output:
 
 2. **Max 2 Sundays per person per month.** ML Sundays count toward this limit. This is a goal, not a hard rule — a 5th Sunday may require a 3rd appearance from someone.
 
-3. **Never leave a service with only 1 person.** Minimum: ML + 1 other Band member.
+3. **Avoid consecutive Sundays.** Push back against scheduling someone two Sundays in a row, especially when one of those Sundays is their Music Lead week. This is a strong preference, not an absolute rule; only allow it when availability or needed instrumentation makes it clearly worthwhile, and call it out in the proposal.
 
-4. **Scheduling logic:**
+4. **Never leave a service with only 1 person.** Minimum: ML + 1 other Band member.
+
+5. **Scheduling logic:**
    - Track each person's appearance count (ML Sunday = 1 appearance, regardless of how many positions they fill that day)
    - Fill in remaining Band slots from the available pool, respecting the 2x limit
+   - Prefer people who are not scheduled the prior or following Sunday when there are comparable options
    - Prioritize: Percussion when available, Keys when the Music Lead plays guitar, Guitar when the Music Lead plays keys, Vocals as needed
    - When 5 Sundays in the month, someone will likely need a 3rd appearance — choose whoever has the fewest obligations or is most flexible
 
