@@ -178,6 +178,55 @@ The JSON payload contains:
 If publication fails, still return the recommendation and report that the
 dashboard cache was not updated.
 
+## Axon Training plan publication
+
+Axon Training is a generic execution interface. It must not contain Micah's
+cardio frequency, preferred days, block logic, injury rules, exercise choices,
+or workout structure as application defaults. Publish all such decisions in
+one versioned `fitness.training.plan.approved` payload.
+
+The payload is a `TrainingPlanSnapshot` containing:
+
+- stable plan ID, monotonically increasing revision, title, active block title,
+  block outcome, and validity range;
+- arbitrary named targets with stable ID, display label, optional minimum,
+  planned value, unit, and an operational rationale;
+- ordered workout prescriptions with schedule, sequence, required/optional
+  status, tags, execution mode, equipment profile, summary, and coach reasoning;
+- for cardio, the activity, intensity, terrain, weather policy, and ordered
+  timed segments;
+- one ordered card stream for coaching, sets, rests, countdowns, bilateral
+  countdowns, circuits, questions, and cooldowns;
+- structured execution modes, media references with attribution/license, form
+  cues, and ranked modification ladders.
+
+Do not publish an incomplete shell that expects the app to turn "run 60
+minutes" into segments or infer that a fifth session is optional. Targets and
+cardio profiles are data, not application behavior.
+
+Validate before publication:
+
+1. plan revision and validity range;
+2. unique workout and card IDs;
+3. target arithmetic agrees with the prescriptions;
+4. every timed segment and timer has a positive duration;
+5. required equipment exists in the selected profile;
+6. every symptom-sensitive movement has an executable ranked ladder;
+7. all media includes source attribution and license;
+8. each workout's 20-/30-/60-minute contract is arithmetically correct.
+
+Publish through `fitness-coach-events` with a deterministic idempotency key:
+
+```text
+fitness-training-plan:PLAN_ID:REVISION
+```
+
+Axon Training may publish `fitness.training.modification.requested`. Treat its
+embedded prescription and freeform instruction as a proposal request, apply the
+same safety and block guardrails as interactive coaching, and publish the
+complete reviewed diff as `fitness.training.modification.proposed` with the
+request UUID. The app must require confirmation before applying it.
+
 ## Weather
 
 Resolve location from permitted recent phone location, recorded travel context, then home default; ask only if ambiguity changes the recommendation.

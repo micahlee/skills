@@ -26,6 +26,10 @@ Use the `fitness-coach-events` profile for agent-authored derived state:
 
 - `dashboard.health-fitness.next-run-up.cached`: current compact dashboard recommendation;
 - `fitness.coaching.workout-reviewed`: durable completed-workout interpretation and resulting next action.
+- `fitness.training.plan.approved`: complete versioned block targets and
+  execution-ready workout prescriptions consumed by Axon Training;
+- `fitness.training.modification.proposed`: safety-checked structured response
+  to an Axon Training modification request.
 
 Create the profile when absent with only these publish scopes:
 
@@ -33,10 +37,25 @@ Create the profile when absent with only these publish scopes:
 /Users/micahlee/.local/bin/axon clients create \
   --scope events:publish:dashboard.health-fitness.next-run-up.cached \
   --scope events:publish:fitness.coaching.workout-reviewed \
+  --scope events:publish:fitness.training.plan.approved \
+  --scope events:publish:fitness.training.modification.proposed \
   --profile fitness-coach-events \
   --expires 8760h \
-  fitness-coach-events
+fitness-coach-events
 ```
+
+The Axon Training client uses a separate least-privilege token:
+
+```text
+events:subscribe:fitness.training.plan.approved
+events:subscribe:fitness.training.modification.proposed
+events:publish:fitness.training.workout.reported
+events:publish:fitness.training.modification.requested
+```
+
+The plan payload, not mobile code, is canonical for current targets, required
+versus optional sessions, run/ride structure, weather policy, and every workout
+card. Mobile caches are replaceable projections keyed by plan ID and revision.
 
 Never print bearer tokens. Query completed-workout reviews through
 `healthFitnessWorkoutDetail` or `healthFitnessRunAnalysis`; both return a

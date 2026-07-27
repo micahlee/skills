@@ -22,7 +22,7 @@ Use one explicit mode when invoked by automation:
 - `/fitness-coach next`: select the next workout and publish the dashboard recommendation cache;
 - `/fitness-coach review-run`: analyze the triggering run, publish a durable workout review, and adapt only within the active block;
 - `/fitness-coach review-block`: review the active block and draft or apply only approved changes;
-- `/fitness-coach prepare`: turn an approved workout into an execution-ready prescription, warmup, cooldown, and publication.
+- `/fitness-coach prepare`: turn the approved block and upcoming sequence state into a versioned, execution-ready training-plan snapshot, then publish it for Axon Training. The snapshot—not the app—owns targets, schedule, modality, workout structure, warmups, cooldowns, equipment, coaching, and modification ladders.
 
 For all workflows, read [COACHING-POLICY.md](references/COACHING-POLICY.md). Then read only the relevant files:
 
@@ -61,7 +61,7 @@ Do not read or create legacy `Run Training Plan.md` or `runs/*.md` projections a
 
 - **Onboard/reassess:** analyze history first, interview to confirm hypotheses, draft a baseline and block, then require approval before activation.
 - **What's next:** return next strength/rehab, recommended cardio, valid 60- and 30-minute cardio options, and the best overall choice.
-- **Execution handoff:** validate exact duration, completion policy, identity, and scheduled time before publishing to Hevy, Apple Workout, or another execution interface.
+- **Execution handoff:** validate exact duration, completion policy, identity, and scheduled time before publishing a complete Axon Training plan snapshot or a platform-specific Hevy/Apple Workout handoff. Never require an execution app to infer programming.
 - **Workout review:** verify fresh completion data, compare intended and actual load, incorporate terrain and historical weather when material, record feedback, and adapt only within approved guardrails.
 - **Pain/injury:** record the report, screen red flags, gather missing context, guide only appropriate low-risk tests, and adapt programming without diagnosing.
 - **Self-sync:** emit one structured fitness packet; validate and apply only the returned fitness answer packet.
