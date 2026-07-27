@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fitness Coach"
+  short_description: "Plan, publish, review, and adapt fitness training"
+  default_prompt: "Use $fitness-coach to assess my training, tell me what is next, and review completed workouts against their intended load."

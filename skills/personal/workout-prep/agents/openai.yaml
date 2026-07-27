@@ -1,4 +1,0 @@
-interface:
-  display_name: "Workout Prep"
-  short_description: "Warmups and cooldowns for workouts"
-  default_prompt: "Use $workout-prep to build a tailored warmup and cooldown for this workout."
