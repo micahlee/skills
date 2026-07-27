@@ -54,8 +54,12 @@ events:publish:fitness.training.modification.requested
 ```
 
 The plan payload, not mobile code, is canonical for current targets, required
-versus optional sessions, run/ride structure, weather policy, and every workout
-card. Mobile caches are replaceable projections keyed by plan ID and revision.
+versus optional sessions, cardio activity and environment, run/ride structure,
+typed segment purpose and HR/pace/power/cadence/RPE targets, weather policy,
+and every workout card. Mobile caches are replaceable projections keyed by
+plan ID and revision. Device adapters may translate supported typed fields into
+HealthKit or WorkoutKit representations; they may not derive programming from
+freeform prose.
 
 Never print bearer tokens. Query completed-workout reviews through
 `healthFitnessWorkoutDetail` or `healthFitnessRunAnalysis`; both return a

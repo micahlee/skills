@@ -193,23 +193,32 @@ The payload is a `TrainingPlanSnapshot` containing:
   planned value, unit, and an operational rationale;
 - ordered workout prescriptions with schedule, sequence, required/optional
   status, tags, execution mode, equipment profile, summary, and coach reasoning;
-- for cardio, the activity, intensity, terrain, weather policy, and ordered
-  timed segments;
+- for cardio, typed activity (`running`, `cycling`, or `walking`), typed
+  environment (`indoor`, `outdoor`, or `unknown`), intensity summary, weather
+  policy, and ordered timed segments;
+- for every cardio segment, its purpose (`warmup`, `work`, `recovery`, or
+  `cooldown`) plus a typed target when one exists: heart-rate range in bpm,
+  pace range in seconds per mile, power range in watts, cadence range in rpm,
+  or perceived-exertion range in RPE, with a human-readable label;
 - one ordered card stream for coaching, sets, rests, countdowns, bilateral
   countdowns, circuits, questions, and cooldowns;
 - structured execution modes, media references with attribution/license, form
   cues, and ranked modification ladders.
 
 Do not publish an incomplete shell that expects the app to turn "run 60
-minutes" into segments or infer that a fifth session is optional. Targets and
-cardio profiles are data, not application behavior.
+minutes" into segments, infer that a fifth session is optional, parse a prose
+intensity into a target, or guess whether the activity is running or cycling.
+Targets and cardio profiles are data, not application behavior. The app may
+translate typed targets into supported WorkoutKit alerts, but it must not
+choose or alter them.
 
 Validate before publication:
 
 1. plan revision and validity range;
 2. unique workout and card IDs;
 3. target arithmetic agrees with the prescriptions;
-4. every timed segment and timer has a positive duration;
+4. every timed segment and timer has a positive duration, and every typed
+   target has ordered bounds with the unit required by its target kind;
 5. required equipment exists in the selected profile;
 6. every symptom-sensitive movement has an executable ranked ladder;
 7. all media includes source attribution and license;
