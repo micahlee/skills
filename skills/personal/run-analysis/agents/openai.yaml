@@ -1,4 +1,0 @@
-interface:
-  display_name: "Run Analysis"
-  short_description: "Analyze Axon runs and write run journal entries"
-  default_prompt: "Use $run-analysis to analyze this Axon run ID and save the run journal entry."

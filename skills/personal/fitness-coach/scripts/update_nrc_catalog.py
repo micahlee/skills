@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh the local NRC speed-workout catalog from the public community sheet."""
+"""Refresh the fitness-coach NRC speed-workout catalog."""
 
 from __future__ import annotations
 
