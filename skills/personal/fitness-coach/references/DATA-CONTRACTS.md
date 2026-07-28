@@ -58,10 +58,12 @@ events:publish:fitness.training.modification.requested
 The plan payload, not mobile code, is canonical for current targets, required
 versus optional sessions, cardio activity and environment, run/ride structure,
 typed segment purpose and HR/pace/power/cadence/RPE targets, weather policy,
-and every workout card. Mobile caches are replaceable projections keyed by
-plan ID and revision. Device adapters may translate supported typed fields into
-native HealthKit recording; they may not derive programming from freeform
-prose.
+every workout card, exact spoken scripts, and pre-generated coaching audio.
+Mobile caches are replaceable projections keyed by plan ID and revision; they
+decode and cache plan audio for offline playback but never synthesize planned
+coaching or hold provider credentials. Device adapters may translate supported
+typed fields into native HealthKit recording; they may not derive programming
+from freeform prose.
 
 Keep coaching intent and observed execution in separate event streams.
 `fitness.training.plan.approved` is an immutable prescription snapshot. Create
