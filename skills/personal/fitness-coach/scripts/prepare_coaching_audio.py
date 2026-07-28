@@ -20,9 +20,11 @@ DEFAULT_MODEL = "gpt-4o-mini-tts"
 DEFAULT_VOICE = "marin"
 DEFAULT_FORMAT = "aac"
 DEFAULT_INSTRUCTIONS = (
-    "Sound like an excellent personal fitness coach: warm, natural, clear, and confident. "
-    "Speak conversationally, never like an announcer or a navigation system. Use subtle energy "
-    "and natural intonation. Do not add or omit words. Pronounce exercise names and numbers clearly."
+    "Speak like an excellent personal fitness coach talking one-to-one through earbuds during a "
+    "workout: warm, natural, attentive, and confident. Use conversational pacing, contractions, "
+    "subtle changes in energy, and natural intonation. Never sound like an announcer, navigation "
+    "system, or someone reading bullet points. Do not add or omit words. Pronounce exercise names "
+    "and numbers clearly."
 )
 SIDE_SWITCH_SCRIPT = "Switch sides."
 MAX_PLAN_BYTES = 12 * 1024 * 1024
@@ -140,6 +142,12 @@ def load_plan(path: Path) -> dict[str, Any]:
 
 
 def spoken_script(coaching: dict[str, Any]) -> str:
+    narration = string(coaching.get("narration"))
+    if narration:
+        return narration
+
+    # Backward compatibility for plans published before narration became a
+    # separate authored surface.
     transition = string(coaching.get("transition"))
     if not transition:
         return ""
