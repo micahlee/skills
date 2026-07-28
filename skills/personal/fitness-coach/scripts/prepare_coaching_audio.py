@@ -17,7 +17,7 @@ from typing import Any
 
 
 DEFAULT_MODEL = "gpt-4o-mini-tts"
-DEFAULT_VOICE = "marin"
+DEFAULT_VOICE = "verse"
 DEFAULT_FORMAT = "aac"
 DEFAULT_INSTRUCTIONS = (
     "Speak like an excellent personal fitness coach talking one-to-one through earbuds during a "
