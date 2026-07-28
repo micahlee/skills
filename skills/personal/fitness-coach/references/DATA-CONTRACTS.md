@@ -28,6 +28,8 @@ Use the `fitness-coach-events` profile for agent-authored derived state:
 - `fitness.coaching.workout-reviewed`: durable completed-workout interpretation and resulting next action.
 - `fitness.training.plan.approved`: complete versioned block targets and
   execution-ready workout prescriptions consumed by Axon Training;
+- `fitness.training.workout.reported`: append-only execution/disposition facts
+  published by Axon Training, including manual completion or intentional skip;
 - `fitness.training.modification.proposed`: safety-checked structured response
   to an Axon Training modification request.
 
@@ -58,8 +60,22 @@ versus optional sessions, cardio activity and environment, run/ride structure,
 typed segment purpose and HR/pace/power/cadence/RPE targets, weather policy,
 and every workout card. Mobile caches are replaceable projections keyed by
 plan ID and revision. Device adapters may translate supported typed fields into
-HealthKit or WorkoutKit representations; they may not derive programming from
-freeform prose.
+native HealthKit recording; they may not derive programming from freeform
+prose.
+
+Keep coaching intent and observed execution in separate event streams.
+`fitness.training.plan.approved` is an immutable prescription snapshot. Create
+a new revision only when future programming changes. Completion, intentional
+skip, abandonment, or imported workout data belongs in
+`fitness.training.workout.reported` (or its source import event) and must never
+be written into the plan payload or trigger a plan revision by itself. The
+training overview is a rebuildable projection that joins the latest approved
+plan with the workout log to derive prescription status, target progress, and
+the next unresolved workout.
+
+Every report should retain stable `planID`, `planRevision`, `workoutID`, and
+`prescriptionRevision` references. Corrections should supersede or reconcile
+log facts without rewriting the historical plan that was executed.
 
 Never print bearer tokens. Query completed-workout reviews through
 `healthFitnessWorkoutDetail` or `healthFitnessRunAnalysis`; both return a
@@ -67,16 +83,19 @@ Never print bearer tokens. Query completed-workout reviews through
 
 The manual tracer may use Markdown/JSON, but it must keep the same boundaries and clearly label state that is not yet continuously maintained.
 
-Before analyzing a newly completed workout, verify the whole data path:
+Before analyzing a newly completed workout, verify the native data path:
 
 1. the phone/watch recorded the completion;
-2. the current source or mobile node exported it;
-3. Axon ingested the workout event;
-4. route and metric samples are attached when required.
+2. the native HealthKit workout finalized;
+3. Axon Training published the workout report;
+4. Axon ingested it into the workout-log projection;
+5. route and metric samples or summary references are attached when required.
 
 Report the newest source and Axon timestamps when the workout is missing. Do not turn an empty query into a zero-data analysis.
 
-Verify deployed mobile-node capabilities rather than assuming them. A node that subscribes to prescriptions and schedules Apple Workouts is not automatically an outbound HealthKit exporter. Until direct HealthKit upload is confirmed, identify any remaining Auto Export dependency explicitly.
+Verify deployed Axon Training capabilities rather than assuming them. Native
+execution must not depend on Apple Workout publication or a later Auto Export
+round trip for the completion to become useful in Axon.
 
 Keep observed, derived, and joined data distinct:
 

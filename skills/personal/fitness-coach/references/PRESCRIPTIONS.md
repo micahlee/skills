@@ -43,6 +43,16 @@ choose and label a conservative calibration branch.
 - If the active profile cannot support the planned exercise, choose a complete
   substitute before publication and state the adaptation tradeoff.
 - Weekly coverage resets Monday. After push/pull/legs, a fourth work session is full body.
+- Schedule main push, pull, and legs sessions only on Monday, Tuesday, and
+  Thursday. Reject a main split prescription scheduled on Wednesday, Friday,
+  Saturday, or Sunday.
+- If an anchor-day main session is missed, preserve it as next in sequence for
+  the next permitted Monday, Tuesday, or Thursday. Do not repay it on an
+  off-day.
+- Wednesday, Friday, Saturday, and Sunday may contain optional
+  mobility/recovery. They may contain optional full-body work only after
+  push/pull/legs coverage is complete and all load, symptom, and consecutive
+  work-day rules pass. Sunday remains rest by default.
 - Allow at most two consecutive strength work days. A third becomes purposeful mobility, stretching, stability, or rehab recovery.
 - Cardio does not count in that streak.
 - Progress within approved rep ranges and target RIR: add reps first, then the smallest practical load increment at the top of the range with acceptable effort, technique, and symptoms. Hold/regress otherwise.
@@ -95,6 +105,13 @@ When exporting to Hevy:
 ## Cardio
 
 - The 30-minute option may be speed, recovery run, incline walk, or cycling.
+- Normally include one deliberate high-intensity or quality-cardio exposure in
+  each weekly plan. Prefer the Wednesday slot and running-specific work during
+  5K preparation. Use a controlled, submaximal dose appropriate to the block;
+  "quality" does not mean all-out.
+- If symptoms or recovery argue against running speed, preserve the adaptation
+  with lower-impact bike intervals when safe. If all intensity is omitted,
+  record the concrete reason and the easy/recovery replacement.
 - Do not treat modalities as equivalent. State intended adaptation and general-aerobic versus running-specific credit.
 - Never pair hard legs and speed the same day; normally place a non-hard day between them.
 - Include environment, warmup, continuous/interval structure, HR/pace/power/RPE targets, recoveries, cooldown, success, and abort/regression rules.
@@ -130,7 +147,7 @@ timed total = warmup + Σ(block iterations × timed steps) + timed cooldown
 - If an exact 60-minute workout should also permit continuation, make the timed structure total 60 minutes and add open continuation afterward only when the execution representation supports it.
 - Explain a platform limitation rather than describing a shorter fixed workout as a full slot.
 
-Before Apple Workout publication, verify:
+Before Axon Training publication, verify:
 
 ```text
 Available slot: 60 min
@@ -139,6 +156,12 @@ Open continuation: optional after minute 60
 ```
 
 Also verify title, scheduled time, stable plan ID, revision, targets, and completion policy. Never use a tracer/demo title, ID, or fixture for a production prescription. Reject `axon-watch-tracer`, `Axon Run Tracer`, and equivalent test identities at the production handoff.
+
+Before Axon Training plan publication, also validate every strength
+prescription against its scheduled weekday: main push/pull/legs only on
+Monday, Tuesday, or Thursday; optional full body only after weekly split
+coverage; mobility/recovery allowed on off-days. Reject rather than silently
+relocate an invalid main split session.
 
 The execution interface must receive the approved Axon prescription without silently shortening, weakening, or substituting it.
 
@@ -204,13 +227,36 @@ The payload is a `TrainingPlanSnapshot` containing:
   countdowns, circuits, questions, and cooldowns;
 - structured execution modes, media references with attribution/license, form
   cues, and ranked modification ladders.
+- native cardio execution in Axon Training. Use `executionMode: inApp`; do not
+  hand runs or rides to Apple Workout. Every cardio segment must also exist as
+  an executable timer card in the ordered card stream with the same duration,
+  purpose, and target.
+- a `spokenCoaching` object on each transition that should be heard. It contains
+  exact coach-authored `transition` text, exact optional `cues`, and
+  `announceCues`. Announce the exercise and useful cues on its first card, not
+  every unchanged set. Announce changed set-specific cues, side switches, and
+  every cardio phase transition.
+- concise spoken scripts that are natural when heard once: name what starts
+  now, the effort/duration target, and at most two high-value cues. Do not read
+  rationale, modification ladders, citations, or dense numeric prose aloud.
+- exercise media on the first card for each movement. Prefer two movement-state
+  images when available. Media must be direct HTTPS assets suitable for local
+  caching and include attribution and license.
 
 Do not publish an incomplete shell that expects the app to turn "run 60
-minutes" into segments, infer that a fifth session is optional, parse a prose
+minutes" into cards, infer that a fifth session is optional, parse a prose
 intensity into a target, or guess whether the activity is running or cycling.
-Targets and cardio profiles are data, not application behavior. The app may
-translate typed targets into supported WorkoutKit alerts, but it must not
-choose or alter them.
+Targets, cardio profiles, timer cards, spoken scripts, and media are plan data,
+not application behavior. The app records the native HealthKit workout and
+executes these values without choosing or altering them.
+
+For exercise examples, use a reputable licensed source. The default open
+catalog is [Free Exercise DB](https://github.com/yuhonas/free-exercise-db):
+its exercise dataset and paired images are released under the Unlicense. Use
+raw URLs from the pinned exercise identifier, include both `0.jpg` and `1.jpg`
+as primary/alternate frames when present, set attribution to `Free Exercise
+DB`, and set license to `Unlicense`. Verify the movement match before
+publication; a plausible filename is not enough.
 
 Validate before publication:
 
@@ -222,7 +268,11 @@ Validate before publication:
 5. required equipment exists in the selected profile;
 6. every symptom-sensitive movement has an executable ranked ladder;
 7. all media includes source attribution and license;
-8. each workout's 20-/30-/60-minute contract is arithmetically correct.
+8. each audible transition has exact spoken text and does not repeat unchanged
+   cues on every set;
+9. cardio profile segments and executable timer cards agree one-for-one in
+   order, duration, purpose, and target;
+10. each workout's 20-/30-/60-minute contract is arithmetically correct.
 
 Publish through `fitness-coach-events` with a deterministic idempotency key:
 
