@@ -233,9 +233,25 @@ The payload is a `TrainingPlanSnapshot` containing:
   purpose, and target.
 - a `spokenCoaching` object on each transition that should be heard. It contains
   exact coach-authored `transition` text, exact optional `cues`, and
-  `announceCues`. Announce the exercise and useful cues on its first card, not
-  every unchanged set. Announce changed set-specific cues, side switches, and
-  every cardio phase transition.
+  `announceCues`, plus the generated `audioAssetID` and, for bilateral timers,
+  `sideSwitchAudioAssetID`. Announce the exercise and useful cues on its first
+  card, not every unchanged set. Announce changed set-specific cues, side
+  switches, and every cardio phase transition.
+- a deduplicated plan-level `coachingAudio` catalog. Each entry contains a
+  content-addressed ID, audio format, base64 audio, model, and voice. Generate
+  it before publication with:
+
+```sh
+scripts/prepare_coaching_audio.py /tmp/training-plan.json \
+  /tmp/training-plan-with-audio.json
+```
+
+  Use `gpt-4o-mini-tts`, the `marin` voice, and AAC unless Micah approves a
+  different tested voice. The generator reads the OpenAI credential from the
+  existing Axon keychain configuration, deduplicates repeated scripts, adds a
+  shared bilateral side-switch clip, and rejects a plan above the safe payload
+  limit. Publish only the enriched output. Never put an API key in the plan or
+  mobile app.
 - concise spoken scripts that are natural when heard once: name what starts
   now, the effort/duration target, and at most two high-value cues. Do not read
   rationale, modification ladders, citations, or dense numeric prose aloud.
@@ -269,10 +285,13 @@ Validate before publication:
 6. every symptom-sensitive movement has an executable ranked ladder;
 7. all media includes source attribution and license;
 8. each audible transition has exact spoken text and does not repeat unchanged
-   cues on every set;
+   cues on every set, references an existing generated audio asset, and every
+   bilateral timer references the shared side-switch asset;
 9. cardio profile segments and executable timer cards agree one-for-one in
    order, duration, purpose, and target;
 10. each workout's 20-/30-/60-minute contract is arithmetically correct.
+11. generated coaching audio is deduplicated, decodes successfully, and the
+    enriched plan remains below the generator's payload limit.
 
 Publish through `fitness-coach-events` with a deterministic idempotency key:
 
