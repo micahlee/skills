@@ -248,12 +248,13 @@ scripts/prepare_coaching_audio.py /tmp/training-plan.json \
   /tmp/training-plan-with-audio.json
 ```
 
-  Use `gpt-4o-mini-tts`, the `marin` voice, and AAC unless Micah approves a
-  different tested voice. The generator reads the OpenAI credential from the
-  existing Axon keychain configuration, deduplicates repeated scripts, adds a
-  shared bilateral side-switch clip, and rejects a plan above the safe payload
-  limit. Publish only the enriched output. Never put an API key in the plan or
-  mobile app.
+  Use `gpt-4o-mini-tts`, the `verse` voice, and AAC. `verse` is Micah's
+  approved coaching-voice preference for future plans; use `--voice` only for
+  an explicit session override or a newly approved preference. The generator
+  reads the OpenAI credential from the existing Axon keychain configuration,
+  deduplicates repeated scripts, adds a shared bilateral side-switch clip, and
+  rejects a plan above the safe payload limit. Publish only the enriched output.
+  Never put an API key in the plan or mobile app.
 - separate writing for eyes and ears:
   - keep card titles, details, and `cues` glanceable. Prefer one short title,
     one compact prescription line, and no more than three brief actionable
