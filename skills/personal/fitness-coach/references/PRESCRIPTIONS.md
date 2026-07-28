@@ -232,11 +232,13 @@ The payload is a `TrainingPlanSnapshot` containing:
   an executable timer card in the ordered card stream with the same duration,
   purpose, and target.
 - a `spokenCoaching` object on each transition that should be heard. It contains
-  exact coach-authored `transition` text, exact optional `cues`, and
-  `announceCues`, plus the generated `audioAssetID` and, for bilateral timers,
-  `sideSwitchAudioAssetID`. Announce the exercise and useful cues on its first
-  card, not every unchanged set. Announce changed set-specific cues, side
-  switches, and every cardio phase transition.
+  an exact coach-authored `narration` script, a short `transition` label, and
+  the generated `audioAssetID` plus, for bilateral timers,
+  `sideSwitchAudioAssetID`. Legacy `cues` and `announceCues` remain accepted
+  only for older plans. New narration must not be assembled by reading the
+  visible card cues aloud. Announce an exercise on its first card, not every
+  unchanged set. Announce materially changed set instructions, side switches,
+  and every cardio phase transition.
 - a deduplicated plan-level `coachingAudio` catalog. Each entry contains a
   content-addressed ID, audio format, base64 audio, model, and voice. Generate
   it before publication with:
@@ -252,9 +254,30 @@ scripts/prepare_coaching_audio.py /tmp/training-plan.json \
   shared bilateral side-switch clip, and rejects a plan above the safe payload
   limit. Publish only the enriched output. Never put an API key in the plan or
   mobile app.
-- concise spoken scripts that are natural when heard once: name what starts
-  now, the effort/duration target, and at most two high-value cues. Do not read
-  rationale, modification ladders, citations, or dense numeric prose aloud.
+- separate writing for eyes and ears:
+  - keep card titles, details, and `cues` glanceable. Prefer one short title,
+    one compact prescription line, and no more than three brief actionable
+    cues;
+  - write `spokenCoaching.narration` as a coach speaking one-to-one through
+    earbuds. Use complete sentences, contractions, direct address, and natural
+    transitions. Orient Micah to what just happened, what starts now, how the
+    next effort should feel, and the one or two actions that matter most;
+  - do not repeat the visible cue wording as a list. Translate the same intent
+    into conversational language and add useful context that would clutter the
+    card;
+  - use roughly 45-90 words for a workout introduction, 25-60 words for a new
+    work phase or exercise, and 12-35 words for recoveries and brief
+    transitions. Shorter is valid when interruption would be distracting;
+  - for repeated intervals, vary recovery narration only when it provides
+    timely information: acknowledge the completed effort, direct the recovery,
+    preview the next repetition, or request a relevant check-in. Do not repeat
+    an identical pep talk every round;
+  - keep numbers speakable and sparse. Prefer natural phrases such as “settle
+    into the low one-thirties” over dense ranges when the exact numeric target
+    already remains visible;
+  - avoid generic filler, slogans, citations, modification ladders, or
+    rationale dumps. Conversational narration still needs to be specific and
+    useful.
 - exercise media on the first card for each movement. Prefer two movement-state
   images when available. Media must be direct HTTPS assets suitable for local
   caching and include attribution and license.
@@ -284,9 +307,10 @@ Validate before publication:
 5. required equipment exists in the selected profile;
 6. every symptom-sensitive movement has an executable ranked ladder;
 7. all media includes source attribution and license;
-8. each audible transition has exact spoken text and does not repeat unchanged
-   cues on every set, references an existing generated audio asset, and every
-   bilateral timer references the shared side-switch asset;
+8. each audible transition has exact `narration` that is meaningfully distinct
+   from the visible cues, does not repeat unchanged coaching on every set,
+   references an existing generated audio asset, and every bilateral timer
+   references the shared side-switch asset;
 9. cardio profile segments and executable timer cards agree one-for-one in
    order, duration, purpose, and target;
 10. each workout's 20-/30-/60-minute contract is arithmetically correct.

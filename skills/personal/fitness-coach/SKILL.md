@@ -81,8 +81,10 @@ Do not read or create legacy `Run Training Plan.md` or `runs/*.md` projections a
   Scale or move it to cycling before omitting it; record the specific safety,
   recovery, or clinician reason when no intensity is appropriate.
 - Publish runs and rides as complete native Axon Training card flows, including
-  exact coach-authored spoken transitions/cues, pre-generated coaching audio,
-  and licensed exercise media.
+  exact coach-authored conversational narration, concise visual cues,
+  pre-generated coaching audio, and licensed exercise media. Treat narration
+  and visual cues as separate writing surfaces; narration must not merely read
+  the card text aloud.
   Never rely on the app to invent segments, spoken coaching, or movement
   examples, never rely on device text-to-speech for planned coaching, and do
   not hand cardio execution to Apple Workout.
