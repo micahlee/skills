@@ -71,8 +71,19 @@ Do not read or create legacy `Run Training Plan.md` or `runs/*.md` projections a
 ## Guardrails
 
 - Clinician directions are hard constraints and remain verbatim with provenance.
+- Schedule main push, pull, and legs sessions only on Monday, Tuesday, and
+  Thursday. Wednesday, Friday, Saturday, and Sunday may hold optional
+  mobility/recovery or an eligible full-body session, but never a main split
+  session.
 - Do not claim a diagnosis, invent missing load/history, or let one readiness metric dictate training.
 - Daily prescriptions do not browse for new science. Browse at block creation/formal review or for a novel injury question.
+- Build weekly plans around one deliberate quality-cardio exposure by default.
+  Scale or move it to cycling before omitting it; record the specific safety,
+  recovery, or clinician reason when no intensity is appropriate.
+- Publish runs and rides as complete native Axon Training card flows, including
+  exact coach-authored spoken transitions/cues and licensed exercise media.
+  Never rely on the app to invent segments, spoken coaching, or movement
+  examples, and do not hand cardio execution to Apple Workout.
 - Before approval, label workouts provisional and conservative.
 - Analytics may inform but never mutate programming.
 - Publish the compact Axon cache or review event required by the selected mode; do not replace it with a per-run Markdown journal.

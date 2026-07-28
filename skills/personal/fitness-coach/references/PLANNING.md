@@ -32,14 +32,40 @@ Never equate prior Fitbod behavior with future intent or prescribe an old best a
 | Day | Preferred work |
 | --- | --- |
 | Monday | Push first thing; 60-minute endurance at lunch |
-| Tuesday | Pull when Wednesday speed is planned; otherwise pull or legs |
-| Wednesday | Preferred speed slot when prescribed |
-| Thursday | Legs after Wednesday speed; otherwise legs or pull |
-| Friday | 60-minute endurance anchor |
-| Saturday | Optional full body after push/pull/legs if load permits; otherwise recovery/rest |
-| Sunday | Rest and whole-person self-sync |
+| Tuesday | Main legs or pull session; prefer legs when Friday endurance should be protected |
+| Wednesday | No main split strength; preferred quality-cardio slot, optional mobility/recovery, or eligible full body |
+| Thursday | Remaining main legs or pull session |
+| Friday | No main split strength; 60-minute endurance anchor, optional mobility/recovery, or eligible full body |
+| Saturday | No main split strength; optional mobility/recovery or eligible full body |
+| Sunday | No main split strength; normally rest and whole-person self-sync, with optional recovery work only when useful |
 
-Monday and Friday endurance may serve different purposes. Modify or relocate Thursday leg stress when Friday is important. Sunday is normally rest, but consecutive strength work counting spans week boundaries.
+Main push, pull, and legs sessions are anchored exclusively to Monday,
+Tuesday, and Thursday. A missed split session remains next in sequence until
+the next permitted anchor day; do not move it to Wednesday, Friday, Saturday,
+or Sunday. Recovery needs may replace an anchor-day strength session with
+mobility/recovery, but they do not make an off-day eligible for a main split
+session.
+
+Optional full-body work may occur on Wednesday, Friday, Saturday, or Sunday
+only after push, pull, and legs coverage is complete and load, symptoms, and
+the two-consecutive-work-day rule permit it. Sunday remains rest by default.
+Monday and Friday endurance may serve different purposes. When legs are
+scheduled Thursday, modify their dose so Friday's endurance target remains
+achievable. Consecutive strength work counting spans week boundaries.
+
+Normally program one deliberate quality-cardio exposure in every Monday-Sunday
+week. Wednesday is the preferred slot. This is an intensity floor, not a demand
+for an all-out session: choose running intervals, controlled tempo/threshold
+work, strides, or bike intervals according to the block and current
+constraints. Prefer running-specific quality while preparing for a running
+event, but use bike intensity when impact loading is the limiting constraint.
+
+Regress the dose or modality before deleting quality. Omit intensity only when
+a specific signal makes even the regressed option inappropriate: acute pain,
+altered gait, illness, unusual accumulated load/fatigue, clinician direction,
+or environmental conditions that cannot be solved indoors. Record the reason
+and the replacement. Do not let the weekly target silently become all easy
+aerobic work.
 
 ## Weekly Self-Sync
 
