@@ -1,0 +1,235 @@
+{
+  "ankle-rock": {
+    "aliases": [
+      "Ankle rock",
+      "Ankle rocks"
+    ],
+    "instructions": {
+      "overview": "Move the knee forward over a planted foot to restore controlled ankle dorsiflexion.",
+      "steps": [
+        "Face a wall in a split stance with the working foot flat and the toes pointing forward.",
+        "Drive the working-side knee toward the wall over the middle toes without lifting the heel or collapsing the arch.",
+        "Return under control and repeat through the largest comfortable range."
+      ],
+      "demonstrationURL": "https://uk.physitrack.com/home-exercise-video/ankle-mobility---knee-to-wall",
+      "illustrationAssetName": "AnkleRock",
+      "illustrationAttribution": "Physitrack · personal-use reference"
+    }
+  },
+  "band-pull-apart": {
+    "free_exercise_db_id": "Band_Pull_Apart",
+    "instructions": {
+      "overview": "Use the band to train controlled shoulder-blade retraction without shrugging.",
+      "steps": [
+        "Hold the band at shoulder height with straight arms and light initial tension.",
+        "Pull the hands apart by moving the shoulder blades back and down until the band approaches the chest.",
+        "Pause briefly, then return slowly without letting the shoulders roll forward."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Band_Pull_Apart"
+    }
+  },
+  "chest-supported-dumbbell-row": {
+    "free_exercise_db_id": "Dumbbell_Incline_Row",
+    "instructions": {
+      "overview": "Brace against the incline bench and row without using torso momentum.",
+      "steps": [
+        "Lie chest-down on an incline bench with a dumbbell in each hand and arms hanging straight.",
+        "Draw the shoulder blades back and row the dumbbells toward the hips while keeping the chest supported.",
+        "Pause at the top, then lower until the arms are long again."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Dumbbell_Incline_Row"
+    }
+  },
+  "childs-pose-lat-stretch": {
+    "aliases": [
+      "Child's-pose lat stretch",
+      "Child’s-pose lat stretch",
+      "Childs-pose lat stretch"
+    ],
+    "free_exercise_db_id": "Childs_Pose",
+    "instructions": {
+      "overview": "Sit the hips back while reaching long through the arms to open the lats and upper back.",
+      "steps": [
+        "Begin on hands and knees, then walk the hands forward.",
+        "Send the hips toward the heels while keeping the arms long and palms grounded.",
+        "Breathe into the sides of the rib cage without forcing the shoulders."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Childs_Pose"
+    }
+  },
+  "dead-bug": {
+    "free_exercise_db_id": "Dead_Bug",
+    "instructions": {
+      "overview": "Train trunk control while the arms and legs move away from the body.",
+      "steps": [
+        "Lie on your back with hips and knees at 90 degrees and arms reaching toward the ceiling.",
+        "Exhale to bring the ribs down and keep the lower back gently supported by the floor.",
+        "Slowly extend the prescribed opposite arm and leg without losing trunk position, then return and alternate."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Dead_Bug"
+    }
+  },
+  "dumbbell-goblet-squat": {
+    "free_exercise_db_id": "Goblet_Squat",
+    "instructions": {
+      "overview": "Use a front-held dumbbell to practice a balanced squat with the whole foot grounded.",
+      "steps": [
+        "Hold one dumbbell vertically against the chest and stand with feet around shoulder width.",
+        "Brace, then sit the hips down between the feet as the knees track over the toes.",
+        "Keep the chest tall and feet planted, then drive through the whole foot to stand."
+      ],
+      "demonstrationURL": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/dumbbell-goblet-squat.mp4"
+    }
+  },
+  "dumbbell-romanian-deadlift": {
+    "free_exercise_db_id": "Stiff-Legged_Dumbbell_Deadlift",
+    "instructions": {
+      "overview": "Load the hips and hamstrings with a controlled hinge while keeping the dumbbells close.",
+      "steps": [
+        "Stand tall with a dumbbell in each hand, knees softly bent, ribs stacked, and shoulders set.",
+        "Push the hips backward as the dumbbells track close to the legs; stop before the back position changes.",
+        "Drive the floor away and bring the hips forward to stand without leaning back."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Stiff-Legged_Dumbbell_Deadlift"
+    }
+  },
+  "half-kneeling-hip-flexor-stretch": {
+    "aliases": [
+      "Half-kneeling hip flexor stretch"
+    ],
+    "free_exercise_db_id": "Kneeling_Hip_Flexor",
+    "instructions": {
+      "overview": "Open the front of the kneeling-side hip without arching the lower back.",
+      "steps": [
+        "Set up half-kneeling with both knees near 90 degrees and the torso tall.",
+        "Gently tuck the pelvis, squeeze the kneeling-side glute, and shift forward slightly.",
+        "Hold a mild stretch at the front of the hip while breathing normally, then switch sides."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Kneeling_Hip_Flexor"
+    }
+  },
+  "neutral-grip-lat-pulldown": {
+    "free_exercise_db_id": "Close-Grip_Front_Lat_Pulldown",
+    "instructions": {
+      "overview": "Pull the neutral handle toward the upper chest by driving the elbows down.",
+      "steps": [
+        "Sit securely under the thigh pads and take the neutral handle with arms long.",
+        "Keep the torso nearly upright and pull the elbows down toward the ribs.",
+        "Pause without shrugging, then let the arms lengthen under control."
+      ],
+      "demonstrationURL": "https://pub-585d42eb1aa64a67aedf483ec328d3fe.r2.dev/exercise-videos/male/cable-close-grip-front-lat-pulldown.mp4"
+    }
+  },
+  "open-book-rotation": {
+    "aliases": [
+      "Open-book rotation",
+      "Open book rotation"
+    ],
+    "instructions": {
+      "overview": "Rotate through the upper back while the bent knees keep the pelvis stable.",
+      "steps": [
+        "Lie on your side with hips and knees bent, knees stacked, and both arms reaching forward.",
+        "Sweep the top arm open as the chest rotates and the eyes follow the hand.",
+        "Keep the knees together, pause within a comfortable range, then return slowly."
+      ],
+      "demonstrationURL": "https://elite-performance-institute.com/exercise-library/thoracic-mobility/thoracic-rotation-open-book/",
+      "illustrationAssetName": "OpenBookRotation",
+      "illustrationAttribution": "Elite Performance Institute · personal-use reference"
+    }
+  },
+  "stationary-cycle": {
+    "aliases": [
+      "Easy bike",
+      "Easy cycle"
+    ],
+    "free_exercise_db_id": "Bicycling_Stationary",
+    "instructions": {
+      "overview": "Use an easy stationary-bike cadence to raise temperature without adding meaningful fatigue.",
+      "steps": [
+        "Adjust the seat so the knee remains slightly bent at the bottom of the pedal stroke.",
+        "Begin with light resistance and pedal smoothly without rocking the hips.",
+        "Keep the prescribed conversational effort and increase resistance only enough to maintain control."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Bicycling_Stationary"
+    }
+  },
+  "stationary-row": {
+    "aliases": [
+      "Easy row"
+    ],
+    "free_exercise_db_id": "Rowing_Stationary",
+    "instructions": {
+      "overview": "Warm up on the rower with a leg-driven stroke and relaxed shoulders.",
+      "steps": [
+        "Secure the feet, sit tall, and begin at the catch with knees bent and arms long.",
+        "Push through the legs first, then open the hips slightly and draw the handle toward the lower ribs.",
+        "Recover by extending the arms, hinging forward, and finally bending the knees."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Rowing_Stationary"
+    }
+  },
+  "supine-hamstring-stretch": {
+    "aliases": [
+      "Supine hamstring stretch"
+    ],
+    "free_exercise_db_id": "Leg-Up_Hamstring_Stretch",
+    "instructions": {
+      "overview": "Lengthen the back of the thigh while the trunk and pelvis stay supported.",
+      "steps": [
+        "Lie on your back with one knee bent and the other leg lifted.",
+        "Support the lifted thigh or use a strap, then straighten the knee only as far as comfortable.",
+        "Keep the pelvis quiet and ankle relaxed; breathe, then switch sides."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Leg-Up_Hamstring_Stretch"
+    }
+  },
+  "thread-the-needle": {
+    "aliases": [
+      "Thread-the-needle stretch",
+      "Thread the needle stretch"
+    ],
+    "instructions": {
+      "overview": "Rotate the upper back by reaching one arm beneath the supporting arm.",
+      "steps": [
+        "Begin on hands and knees with hands under shoulders and knees under hips.",
+        "Turn one palm up and slide that arm under the other until the shoulder and side of the head approach the floor.",
+        "Keep the hips over the knees, breathe into the upper back, then return and switch sides."
+      ],
+      "demonstrationURL": "https://redefiningstrength.com/thread-the-needle/",
+      "illustrationAssetName": "ThreadTheNeedle",
+      "illustrationAttribution": "Redefining Strength · personal-use reference"
+    }
+  },
+  "wall-calf-stretch": {
+    "aliases": [
+      "Wall calf stretch"
+    ],
+    "free_exercise_db_id": "Calf_Stretch_Hands_Against_Wall",
+    "instructions": {
+      "overview": "Stretch the back-leg calf while keeping its heel planted and foot pointed forward.",
+      "steps": [
+        "Face a wall in a staggered stance and place both hands on the wall.",
+        "Keep the back knee straight, back foot forward, and heel firmly on the floor.",
+        "Lean forward until the calf stretch is mild and steady, then switch sides."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Calf_Stretch_Hands_Against_Wall"
+    }
+  },
+  "wall-slides": {
+    "aliases": [
+      "Wall slides",
+      "Wall slide"
+    ],
+    "instructions": {
+      "overview": "Practice smooth shoulder-blade rotation and overhead motion without flaring the ribs.",
+      "steps": [
+        "Stand facing the wall in a split stance with forearms on the wall and elbows near 90 degrees.",
+        "Brace gently and slide the forearms upward without shrugging or arching the lower back.",
+        "Stop at the largest controlled range, then lower slowly."
+      ],
+      "demonstrationURL": "https://www.deskjockeyphysio.com/blog/how-to-complete-wall-slide",
+      "illustrationAssetName": "WallSlides",
+      "illustrationAttribution": "Desk Jockey Physio · personal-use reference"
+    }
+  }
+}

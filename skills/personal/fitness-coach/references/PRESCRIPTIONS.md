@@ -282,6 +282,27 @@ scripts/prepare_coaching_audio.py /tmp/training-plan.json \
 - exercise media on the first card for each movement. Prefer two movement-state
   images when available. Media must be direct HTTPS assets suitable for local
   caching and include attribution and license.
+- detailed `instructions` on every set exercise and non-cardio movement timer.
+  Include a concise overview, ordered setup-and-execution steps, and an
+  optional reputable direct demonstration URL. The app always exposes these
+  through its Instructions action; `detail`, visible cues, narration, and
+  media do not replace them.
+- before generating coaching audio, enrich and validate every distinct set
+  exercise and non-cardio movement timer against the reviewed movement
+  catalog. Timer movements require a stable `movementID`; the enrichment tool
+  resolves legacy titles only through explicit reviewed aliases:
+
+```sh
+scripts/prepare_exercise_media.py /tmp/training-plan.json \
+  /tmp/training-plan-with-media.json --check-urls
+scripts/prepare_coaching_audio.py /tmp/training-plan-with-media.json \
+  /tmp/training-plan-with-audio.json
+```
+
+  Add a reviewed `references/exercise-media.json` mapping when a prescribed
+  movement is new. Never bypass a missing mapping or infer a catalog ID from a
+  plausible filename. A movement must have detailed instructions plus either
+  licensed remote media or a reviewed bundled personal-use illustration.
 
 Do not publish an incomplete shell that expects the app to turn "run 60
 minutes" into cards, infer that a fifth session is optional, parse a prose
@@ -307,7 +328,10 @@ Validate before publication:
    target has ordered bounds with the unit required by its target kind;
 5. required equipment exists in the selected profile;
 6. every symptom-sensitive movement has an executable ranked ladder;
-7. all media includes source attribution and license;
+7. every movement has a stable `exerciseID` or `movementID`, detailed
+   instructions, and a visual on its first card; all remote media includes
+   source attribution and license, and every bundled personal-use illustration
+   includes source attribution plus a direct demonstration link;
 8. each audible transition has exact `narration` that is meaningfully distinct
    from the visible cues, does not repeat unchanged coaching on every set,
    references an existing generated audio asset, and every bilateral timer
