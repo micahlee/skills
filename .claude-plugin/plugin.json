@@ -18,6 +18,7 @@
     "./skills/music/spotify",
     "./skills/personal/bible-journal-import",
     "./skills/personal/coma-bible-study",
+    "./skills/personal/create-bible-study-recipe",
     "./skills/personal/daily-dream",
     "./skills/personal/daily-note",
     "./skills/personal/fitness-coach",

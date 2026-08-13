@@ -13,6 +13,7 @@ Personal agent skills for reusable workflows.
 - `morning-briefing`: Render a compact morning briefing from daily-note/dream context, light fresh deltas, and goal-aware signals; write the daily note block and return a Telegram-ready message.
 - `bible-journal-import`: Import handwritten Bible study or sermon notes into the Obsidian Bible Study Journal.
 - `coma-bible-study`: Produce concise COMA Bible study prompts from Scripture passages.
+- `create-bible-study-recipe`: Create or revise seasonal and external-resource Bible Study plans and stage them in Axon for connected app review.
 - `obsidian-food-tracker`: Maintain the Obsidian food logging workflow using the Food Tracker plugin.
 - `process-inbox`: Process the Obsidian Inbox into PARA destinations, task lists, shopping lists, reading lists, daily notes, and calendar entries.
 - `fitness-coach`: Plan, publish, review, and adapt holistic strength, rehabilitation, running, cardio, mobility, and recovery programming from goals, constraints, history, and feedback.
