@@ -1,6 +1,6 @@
 ---
 name: lastpass-cli
-description: Safely access LastPass vault entries with the lpass CLI while preventing credential disclosure. Must be used before any direct or indirect lpass invocation, even when the user did not mention LastPass; use for LastPass status, vault lookup, credential retrieval, reauthentication, or automation backed by LastPass.
+description: Safely access LastPass vault entries with the lpass CLI while preventing credential disclosure. Use when any direct or indirect lpass invocation is contemplated, even when the user did not mention LastPass; always load this skill before LastPass status, vault lookup, credential retrieval, reauthentication, or automation backed by LastPass.
 ---
 
 # LastPass CLI
