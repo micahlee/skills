@@ -25,6 +25,10 @@ Personal agent skills for reusable workflows.
 
 - `monarch-money`: Analyze Monarch Money accounts, transactions, cashflow, budgets, recurring charges, and investments with the `mmoney` CLI.
 
+### Security
+
+- `lastpass-cli`: Safely access LastPass vault entries with mandatory explicit confirmation before every direct or indirect `lpass` invocation.
+
 ### Music
 
 - `sonos`: Control Sonos speakers, rooms, groups, queue, scenes, favorites, and playback with the `sonos` CLI.
