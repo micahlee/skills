@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Bible Study Recipe"
+  short_description: "Stage reviewed Bible Study plans in Axon"
+  default_prompt: "Use $create-bible-study-recipe to create and stage a Bible Study recipe for my review."
