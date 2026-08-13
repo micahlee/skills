@@ -29,6 +29,7 @@
     "./skills/personal/process-inbox",
     "./skills/personal/progress-check",
     "./skills/productivity/gws",
+    "./skills/security/lastpass-cli",
     "./skills/worship-leading/chord-chart-builder",
     "./skills/worship-leading/create-monthly-worship-plan",
     "./skills/worship-leading/schedule-music-team",
