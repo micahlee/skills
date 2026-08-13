@@ -7,10 +7,11 @@ Personal agent skills for reusable workflows.
 ### General
 
 - `gamocosm-server-commands`: Send Minecraft server commands through the Gamocosm web console and verify the result.
-- `daily-note`: Create or populate a daily note from recurring tasks, carryovers, project notes, and meal context.
-- `progress-check`: Check Daily Note priority tasks at scheduled checkpoints and publish compact progress-nudge events only when deterministic risk rules say a nudge is warranted.
-- `daily-dream`: Synthesize daily learnings from notes, health/food/fitness, calendar/email, and other bounded sources; prepare tomorrow's nudge and monthly rollups.
-- `morning-briefing`: Render a compact morning briefing from daily-note/dream context, light fresh deltas, and goal-aware signals; write the daily note block and return a Telegram-ready message.
+- `personal-sync`: Run the unified weekly, refresh, daily, reflection, briefing, and progress planning loop with separate human and agent-facing surfaces.
+- `daily-note`: Deprecated compatibility alias for `personal-sync daily`.
+- `progress-check`: Deprecated compatibility alias for `personal-sync progress`.
+- `daily-dream`: Deprecated compatibility alias for `personal-sync reflect`.
+- `morning-briefing`: Deprecated compatibility alias for `personal-sync brief`.
 - `bible-journal-import`: Import handwritten Bible study or sermon notes into the Obsidian Bible Study Journal.
 - `coma-bible-study`: Produce concise COMA Bible study prompts from Scripture passages.
 - `create-bible-study-recipe`: Create or revise seasonal and external-resource Bible Study plans and stage them in Axon for connected app review.
