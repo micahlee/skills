@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 NORMALIZED = FIXTURES / "chasen-monday.json"
+SAMUEL_NORMALIZED = FIXTURES / "samuel-monday.json"
 NEXT_DAY = FIXTURES / "next-day-chasen.json"
 
 
@@ -46,6 +47,37 @@ class AgendaToolTests(unittest.TestCase):
         result = self.run_json(str(SCRIPTS / "validate_agenda.py"), str(NORMALIZED), str(self.docx))
         self.assertTrue(result["ok"])
 
+    def test_validator_accepts_samuel_fixture(self):
+        samuel_docx = self.work / "Samuel-Agenda-2026-08-24.docx"
+        subprocess.run(
+            [sys.executable, str(SCRIPTS / "build_agendas.py"), str(SAMUEL_NORMALIZED), str(samuel_docx)],
+            check=True,
+        )
+        result = self.run_json(
+            str(SCRIPTS / "validate_agenda.py"), str(SAMUEL_NORMALIZED), str(samuel_docx)
+        )
+        self.assertTrue(result["ok"])
+
+    def test_empty_schedule_keeps_bible_and_exact_no_prep_line(self):
+        empty_json = self.work / "empty.json"
+        empty_docx = self.work / "empty.docx"
+        data = json.loads(NORMALIZED.read_text())
+        data["courses"] = []
+        data["next_day_prep"] = []
+        data["parent_report"]["incomplete"] = []
+        empty_json.write_text(json.dumps(data))
+        subprocess.run(
+            [sys.executable, str(SCRIPTS / "build_agendas.py"), str(empty_json), str(empty_docx)],
+            check=True,
+        )
+        result = self.run_json(
+            str(SCRIPTS / "validate_agenda.py"), str(empty_json), str(empty_docx)
+        )
+        self.assertTrue(result["ok"])
+        visible = "\n".join(cell.text for table in Document(empty_docx).tables for row in table.rows for cell in row.cells)
+        self.assertIn("Bible", visible)
+        self.assertIn("No special ClassReach prep notes found", visible)
+
     def test_validator_rejects_detail_in_school_table(self):
         document = Document(self.docx)
         document.tables[1].rows[0].cells[1].paragraphs[0].add_run(" - forbidden detail")
@@ -56,6 +88,17 @@ class AgendaToolTests(unittest.TestCase):
         )
         self.assertFalse(result["ok"])
         self.assertTrue(any("School row 1" in error for error in result["errors"]))
+
+    def test_validator_rejects_internally_inconsistent_counts(self):
+        inconsistent = self.work / "inconsistent.json"
+        data = json.loads(NORMALIZED.read_text())
+        data["courses"][0]["assignment_count"] = 2
+        inconsistent.write_text(json.dumps(data))
+        result = self.run_json(
+            str(SCRIPTS / "validate_agenda.py"), str(inconsistent), str(self.docx), expected=1
+        )
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("does not match 1 assignment records" in error for error in result["errors"]))
 
     def test_next_day_classifier_preserves_terse_task_and_material_sentence(self):
         result = self.run_json(
@@ -93,7 +136,8 @@ class AgendaToolTests(unittest.TestCase):
         fixture["students"][0]["sections"][0]["agendaItems"] = [
             {
                 "type": "MysteryItem",
-                "title": "Unclassified work",
+                "title": "Optional unclassified work",
+                "details": "Optional: bring your workbook.",
                 "meetingDay": False,
             }
         ]
@@ -107,6 +151,29 @@ class AgendaToolTests(unittest.TestCase):
         )
         self.assertFalse(result["ok"])
         self.assertIn("unclassified item", result["error"])
+
+    def test_publisher_preflights_entire_batch_before_copying(self):
+        bad = self.work / "bad-for-batch.docx"
+        document = Document(self.docx)
+        document.tables[1].rows[0].cells[1].paragraphs[0].add_run(" - forbidden detail")
+        document.save(bad)
+        destination = self.work / "batch-published"
+        result = self.run_json(
+            str(SCRIPTS / "publish_agendas.py"),
+            "--agenda",
+            str(NORMALIZED),
+            str(self.docx),
+            "--agenda",
+            str(NORMALIZED),
+            str(bad),
+            "--destination",
+            str(destination),
+            "--renderer",
+            str(Path(__file__).resolve().parent / "fake_renderer.py"),
+            expected=1,
+        )
+        self.assertFalse(result["ok"])
+        self.assertFalse(destination.exists())
 
     def test_publisher_uses_immutable_revisions_and_manifests(self):
         destination = self.work / "published"

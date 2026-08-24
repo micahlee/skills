@@ -42,7 +42,8 @@ content, date logic, parent reports, and filing rules.
    run `scripts/validate_agenda.py NORMALIZED_JSON OUTPUT_DOCX`; treat any
    nonzero result as a hard failure and fix the data or builder before rendering.
 7. Publish with `scripts/publish_agendas.py`, passing each normalized JSON/DOCX
-   pair, the dated OneDrive destination, and a temporary `--render-dir`. The
+   pair, the dated OneDrive destination, the current `documents` skill's
+   `render_docx.py` path via `--renderer`, and a temporary `--render-dir`. The
    publisher revalidates, renders, enforces the weekday page count, hashes the
    DOCX and page PNGs, creates an immutable revision filename when needed, and
    writes a content-free manifest. Inspect every PNG it returns at 100% using
@@ -72,7 +73,8 @@ destination hierarchy.
 - `scripts/validate_agenda.py NORMALIZED_JSON OUTPUT_DOCX` compares visible DOCX
   tables and geometry with the normalized source contract.
 - `scripts/publish_agendas.py --agenda NORMALIZED_JSON DOCX ... --destination
-  DIR --render-dir TEMP_DIR` is the only routine publication path.
+  DIR --renderer RENDER_DOCX_PY --render-dir TEMP_DIR` is the only routine
+  publication path.
 
 Run the regression suite after changing the skill:
 

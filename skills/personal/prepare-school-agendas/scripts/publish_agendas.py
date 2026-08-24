@@ -16,12 +16,6 @@ from pathlib import Path
 from validate_agenda import validate
 
 
-DEFAULT_RENDERER = Path(
-    "/Users/micahlee/.codex/plugins/cache/openai-primary-runtime/documents/"
-    "26.819.11345/skills/documents/render_docx.py"
-)
-
-
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -93,38 +87,49 @@ def persist_rendered_pages(pages: list[Path], render_root: Path, stem: str) -> P
     return candidate
 
 
-def publish_one(
+def prepare_one(
     normalized_json: Path,
     source_docx: Path,
-    destination: Path,
     renderer: Path,
-    render_root: Path | None,
+    temp_render: Path,
 ) -> dict:
     data = json.loads(normalized_json.read_text(encoding="utf-8"))
     validation = validate(data, source_docx)
     if not validation["ok"]:
         raise RuntimeError("agenda validation failed: " + "; ".join(validation["errors"]))
 
-    with tempfile.TemporaryDirectory(prefix="agenda-publish-") as temporary:
-        temp_render = Path(temporary) / "render"
-        temp_render.mkdir()
-        pages = render(renderer, source_docx, temp_render)
-        weekday = date.fromisoformat(data["date"]).strftime("%A")
-        expected_pages = 2 if weekday in {"Monday", "Friday"} else 1
-        if len(pages) != expected_pages:
-            raise RuntimeError(f"page count: expected {expected_pages}, got {len(pages)}")
+    temp_render.mkdir()
+    pages = render(renderer, source_docx, temp_render)
+    weekday = date.fromisoformat(data["date"]).strftime("%A")
+    expected_pages = 2 if weekday in {"Monday", "Friday"} else 1
+    if len(pages) != expected_pages:
+        raise RuntimeError(f"page count: expected {expected_pages}, got {len(pages)}")
+    return {
+        "data": data,
+        "normalized_json": normalized_json,
+        "source_docx": source_docx,
+        "pages": pages,
+        "page_hashes": {page.name: sha256(page) for page in pages},
+    }
 
-        page_hashes = {page.name: sha256(page) for page in pages}
-        published, reused = choose_destination(source_docx, destination)
-        if not reused:
-            exclusive_copy(source_docx, published)
-        if sha256(published) != sha256(source_docx):
-            raise RuntimeError("published DOCX hash does not match source")
 
-        rendered_dir = None
-        if render_root is not None:
-            render_root.mkdir(parents=True, exist_ok=True)
-            rendered_dir = persist_rendered_pages(pages, render_root, published.stem)
+def publish_prepared(prepared: dict, destination: Path, render_root: Path | None) -> dict:
+    data = prepared["data"]
+    normalized_json = prepared["normalized_json"]
+    source_docx = prepared["source_docx"]
+    pages = prepared["pages"]
+    page_hashes = prepared["page_hashes"]
+
+    published, reused = choose_destination(source_docx, destination)
+    if not reused:
+        exclusive_copy(source_docx, published)
+    if sha256(published) != sha256(source_docx):
+        raise RuntimeError("published DOCX hash does not match source")
+
+    rendered_dir = None
+    if render_root is not None:
+        render_root.mkdir(parents=True, exist_ok=True)
+        rendered_dir = persist_rendered_pages(pages, render_root, published.stem)
 
     manifest = {
         "student": data["student"],
@@ -157,7 +162,7 @@ def main() -> int:
         required=True,
     )
     parser.add_argument("--destination", type=Path, required=True)
-    parser.add_argument("--renderer", type=Path, default=DEFAULT_RENDERER)
+    parser.add_argument("--renderer", type=Path, required=True)
     parser.add_argument("--render-dir", type=Path)
     args = parser.parse_args()
 
@@ -166,10 +171,16 @@ def main() -> int:
         return 1
 
     try:
-        outputs = [
-            publish_one(Path(normalized), Path(docx), args.destination, args.renderer, args.render_dir)
-            for normalized, docx in args.agenda
-        ]
+        with tempfile.TemporaryDirectory(prefix="agenda-publish-batch-") as temporary:
+            root = Path(temporary)
+            prepared = [
+                prepare_one(Path(normalized), Path(docx), args.renderer, root / f"agenda-{index}")
+                for index, (normalized, docx) in enumerate(args.agenda)
+            ]
+            outputs = [
+                publish_prepared(item, args.destination, args.render_dir)
+                for item in prepared
+            ]
     except (OSError, RuntimeError, ValueError, KeyError, json.JSONDecodeError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, indent=2), file=sys.stderr)
         return 1

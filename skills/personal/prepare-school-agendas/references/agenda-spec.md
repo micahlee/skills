@@ -7,6 +7,8 @@
 - Publication is immutable. If that filename already exists with different
   bytes, publish `-r2`, `-r3`, and so on; never overwrite and recite a previously
   delivered path. An identical existing file may be reused.
+- Validate and render the complete Samuel-and-Chasen batch before copying either
+  document into the shared destination.
 - Target dates are Monday, Wednesday, or Friday.
 - Monday and Friday files are two pages: child agenda first, child-specific
   parent report second. Wednesday files are one page.
