@@ -1,0 +1,34 @@
+{
+  "startDate": "2026-08-25",
+  "students": [
+    {
+      "student": {"Name": "Chasen"},
+      "sections": [
+        {
+          "courseName": "Grammar 7",
+          "agendaItems": [
+            {"date": "2026-08-25", "title": "English 7", "details": "Bible", "type": "TaskItem", "meetingDay": false}
+          ]
+        },
+        {
+          "courseName": "History Transition",
+          "agendaItems": [
+            {"date": "2026-08-25", "title": "Lesson II, Session 4", "details": "Review the cards together in class. Students should write the answers in their spiral notebook.", "type": "TaskItem", "meetingDay": true}
+          ]
+        },
+        {
+          "courseName": "Latin 1-7",
+          "agendaItems": [
+            {"date": "2026-08-25", "title": "Latin", "details": "Lesson 2 - Grammar", "type": "AgendaItem", "meetingDay": true}
+          ]
+        },
+        {
+          "courseName": "Science",
+          "agendaItems": [
+            {"date": "2026-08-25", "title": "Optional review", "details": "Optional: review Chapter 3.", "type": "AgendaItem", "meetingDay": true}
+          ]
+        }
+      ]
+    }
+  ]
+}

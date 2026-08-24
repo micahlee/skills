@@ -17,6 +17,7 @@ Personal agent skills for reusable workflows.
 - `create-bible-study-recipe`: Create or revise seasonal and external-resource Bible Study plans and stage them in Axon for connected app review.
 - `obsidian-food-tracker`: Maintain the Obsidian food logging workflow using the Food Tracker plugin.
 - `process-inbox`: Process the Obsidian Inbox into PARA destinations, task lists, shopping lists, reading lists, daily notes, and calendar entries.
+- `prepare-school-agendas`: Prepare and verify Samuel's and Chasen's printable school agendas from live ClassReach data.
 - `fitness-coach`: Plan, publish, review, and adapt holistic strength, rehabilitation, running, cardio, mobility, and recovery programming from goals, constraints, history, and feedback.
 - `instagram-read`: Read Instagram reel/post metadata from saved URLs using the local `instagram-cli` session.
 - `gws`: Use the local Google Workspace CLI for Drive, Docs, Sheets, Gmail, Calendar, and related Workspace tasks.

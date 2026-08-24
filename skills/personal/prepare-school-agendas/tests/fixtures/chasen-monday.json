@@ -1,0 +1,24 @@
+{
+  "student": "Chasen",
+  "date": "2026-08-24",
+  "checked_at": "2026-08-23 9:00 PM ET",
+  "courses": [
+    {"name": "Grammar 7", "assignment_count": 1, "completed_count": 0, "url": "", "assignments": [{"title": "Hidden title", "details": "Hidden detail", "completed": false, "url": ""}]},
+    {"name": "Literature-Middle Grades", "assignment_count": 2, "completed_count": 1, "url": "", "assignments": [{"title": "One", "details": "Detail one", "completed": false, "url": ""}, {"title": "Two", "details": "Detail two", "completed": true, "url": ""}]},
+    {"name": "Pre-Algebra", "assignment_count": 1, "completed_count": 1, "url": "", "assignments": [{"title": "Hidden completed title", "details": "Hidden completed detail", "completed": true, "url": ""}]}
+  ],
+  "classreach_extras": [],
+  "next_day_prep": [
+    {"course": "Grammar 7", "text": "Bible", "url": ""},
+    {"course": "History Transition", "text": "Students should write the answers in their spiral notebook.", "url": ""}
+  ],
+  "parent_report": {
+    "incomplete": [
+      {"course": "Grammar 7", "text": "Thursday", "details": "Must remain hidden", "url": ""},
+      {"course": "Grammar 7", "text": "Friday", "details": "Must remain hidden", "url": ""},
+      {"course": "Pre-Algebra", "text": "Wednesday", "details": "Must remain hidden", "url": ""}
+    ],
+    "messages": [],
+    "changes": []
+  }
+}
