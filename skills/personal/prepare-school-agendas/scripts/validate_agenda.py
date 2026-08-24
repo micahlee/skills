@@ -59,7 +59,10 @@ def expected_school_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
     courses = data.get("courses") or []
     if not any(int(course.get("assignment_count", 0)) > 0 for course in courses):
         checked_at = data.get("checked_at", "verification time unavailable")
-        return [{"text": f"No assignments listed in ClassReach  Checked on {checked_at}", "checked": False}]
+        return [
+            {"text": f"No assignments listed in ClassReach Checked on {checked_at}", "checked": False},
+            {"text": "Bible", "checked": False},
+        ]
 
     rows = []
     bible_printed = False
@@ -89,12 +92,52 @@ def expected_incomplete_rows(data: dict[str, Any]) -> list[str]:
     ]
 
 
+def validate_normalized_courses(data: dict[str, Any]) -> list[str]:
+    errors = []
+    courses = data.get("courses")
+    if not isinstance(courses, list):
+        return ["normalized courses must be a list"]
+    for index, course in enumerate(courses, start=1):
+        name = str(course.get("name") or f"course {index}")
+        try:
+            assignment_count = int(course["assignment_count"])
+            completed_count = int(course["completed_count"])
+        except (KeyError, TypeError, ValueError):
+            errors.append(f"normalized {name}: assignment_count and completed_count must be integers")
+            continue
+        assignments = course.get("assignments")
+        if not isinstance(assignments, list):
+            errors.append(f"normalized {name}: assignments must be a list")
+            continue
+        if assignment_count != len(assignments):
+            errors.append(
+                f"normalized {name}: assignment_count {assignment_count} does not match {len(assignments)} assignment records"
+            )
+        actual_completed = sum(bool(assignment.get("completed")) for assignment in assignments)
+        if completed_count != actual_completed:
+            errors.append(
+                f"normalized {name}: completed_count {completed_count} does not match {actual_completed} completed records"
+            )
+    return errors
+
+
 def validate(data: dict[str, Any], docx_path: Path) -> dict[str, Any]:
-    errors: list[str] = []
-    document = Document(docx_path)
+    errors = validate_normalized_courses(data)
     target = date.fromisoformat(data["date"])
     weekday = target.strftime("%A")
     expected_sections = 2 if weekday in {"Monday", "Friday"} else 1
+
+    if errors:
+        return {
+            "ok": False,
+            "student": data.get("student"),
+            "date": data.get("date"),
+            "docx": str(docx_path),
+            "expected_sections": expected_sections,
+            "errors": errors,
+        }
+
+    document = Document(docx_path)
 
     if len(document.sections) != expected_sections:
         errors.append(f"section count: expected {expected_sections}, got {len(document.sections)}")

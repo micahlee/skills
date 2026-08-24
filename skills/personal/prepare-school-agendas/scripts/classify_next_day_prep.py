@@ -18,6 +18,7 @@ CLASSIFICATIONS = {
     "optional",
     "informational",
 }
+SUPPORTED_ITEM_TYPES = {"TaskItem", "AgendaItem", "Handout", "Message", "Discussion"}
 
 MATERIAL_PATTERNS = (
     re.compile(r"\bbring\b", re.I),
@@ -63,6 +64,11 @@ def classify_item(course: str, item: dict[str, Any]) -> dict[str, Any]:
     combined = " ".join(part for part in (title, details) if part)
     material = material_evidence(details)
 
+    if item_type not in SUPPORTED_ITEM_TYPES:
+        raise ValueError(
+            f"unclassified item for {course}: type={item_type!r}, meetingDay={meeting_day}, title={title!r}"
+        )
+
     if re.search(r"\boptional\b", combined, re.I):
         classification = "optional"
         evidence = details or title
@@ -84,9 +90,7 @@ def classify_item(course: str, item: dict[str, Any]) -> dict[str, Any]:
         evidence = details or title
         reason = "informational ClassReach item without a preparation requirement"
     else:
-        raise ValueError(
-            f"unclassified item for {course}: type={item_type!r}, meetingDay={meeting_day}, title={title!r}"
-        )
+        raise AssertionError(f"supported item type was not classified: {item_type}")
 
     if classification not in CLASSIFICATIONS:
         raise AssertionError(f"invalid classification: {classification}")

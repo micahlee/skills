@@ -276,7 +276,10 @@ def school_rows(data):
     courses = data.get("courses", [])
     if not courses or not any(int(course.get("assignment_count", 0)) for course in courses):
         checked_at = data.get("checked_at", "verification time unavailable")
-        rows = [{"text": "No assignments listed in ClassReach", "bold": True, "note": f"  Checked on {checked_at}"}]
+        rows = [
+            {"text": "No assignments listed in ClassReach", "bold": True, "note": f"  Checked on {checked_at}"},
+            {"text": "Bible"},
+        ]
     else:
         rows = []
         printed_bible = False
@@ -308,7 +311,7 @@ def afternoon_rows(data, weekday):
             for item in prep:
                 rows.append({"text": f"{item.get('course', 'ClassReach')}: {item['text']}", "url": item.get("url", ""), "size": 9.2})
         else:
-            rows.append({"text": "No special preparation listed in ClassReach", "size": 9.0, "marker": ""})
+            rows.append({"text": "No special ClassReach prep notes found", "size": 9.0, "marker": ""})
         rows.append({"text": "Make your lunch"})
         if weekday == "Wednesday":
             rows.append({"text": "Gather the towels for laundry" if data["student"] == "Samuel" else "Gather the family trash"})

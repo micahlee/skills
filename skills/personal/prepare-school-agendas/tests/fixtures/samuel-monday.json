@@ -1,0 +1,32 @@
+{
+  "student": "Samuel",
+  "date": "2026-08-24",
+  "checked_at": "2026-08-23 9:00 PM ET",
+  "courses": [
+    {
+      "name": "6th History of Science",
+      "assignment_count": 1,
+      "completed_count": 0,
+      "url": "",
+      "assignments": [{"title": "Hidden science title", "details": "Hidden science detail", "completed": false, "url": ""}]
+    },
+    {
+      "name": "History Alive",
+      "assignment_count": 1,
+      "completed_count": 1,
+      "url": "",
+      "assignments": [{"title": "Hidden history title", "details": "Hidden history detail", "completed": true, "url": ""}]
+    }
+  ],
+  "classreach_extras": [],
+  "next_day_prep": [
+    {"course": "Grammar 6", "text": "Bring your Worksheet book to class!", "url": ""}
+  ],
+  "parent_report": {
+    "incomplete": [
+      {"course": "6th History of Science", "text": "Friday", "details": "Must remain hidden", "url": ""}
+    ],
+    "messages": [],
+    "changes": []
+  }
+}
