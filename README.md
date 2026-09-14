@@ -22,6 +22,10 @@ Personal agent skills for reusable workflows.
 - `instagram-read`: Read Instagram reel/post metadata from saved URLs using the local `instagram-cli` session.
 - `gws`: Use the local Google Workspace CLI for Drive, Docs, Sheets, Gmail, Calendar, and related Workspace tasks.
 
+### Engineering
+
+- `setup-matt-pocock-skills`: Configure a repository's issue tracker, triage labels, and domain-document layout for the engineering skills.
+
 ### Finance
 
 - `monarch-money`: Analyze Monarch Money accounts, transactions, cashflow, budgets, recurring charges, and investments with the `mmoney` CLI.
