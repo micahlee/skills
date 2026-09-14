@@ -10,6 +10,7 @@
     "skills"
   ],
   "skills": [
+    "./skills/engineering/setup-matt-pocock-skills",
     "./skills/gamocosm-server-commands",
     "./skills/finance/monarch-money",
     "./skills/meal-planning/plan-to-eat-curate",
