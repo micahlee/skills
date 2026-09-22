@@ -86,11 +86,15 @@ explicitly asks for a draft or review only.
   it.
 - Resolve exercises from `workout exercise list` and use canonical IDs and
   metric schemas. Do not create duplicates for catalog movements.
-- Put supported metrics in Program targets. Preserve unsupported load, rest,
-  RIR, tempo, progression, and modification rules exactly in item notes; never
-  invent a target field. Apply the exercise schema's exact load interpretation
-  when it declares total, per-hand, bodyweight-plus, assistance, bodyweight,
-  unloaded, or machine-setting semantics.
+- Put a metric in a Training-intended Program target only when both the exercise
+  schema and the currently deployed publication contract support it at that
+  boundary. Local-store support alone is insufficient; for example, preserve
+  `perceived_effort` in notes when the deployed Program publisher rejects it as
+  a structural target. Preserve unsupported load, rest, RIR, tempo, progression,
+  and modification rules exactly in item notes; never invent a target field.
+  Apply the exercise schema's exact load interpretation when it declares total,
+  per-hand, bodyweight-plus, assistance, bodyweight, unloaded, or machine-setting
+  semantics.
 - Represent every ramp, work set, bilateral timed occurrence, repeated hold,
   side switch, and grouped accessory in source order. A one-set ramp may still
   need after-exercise rest. A hold under five seconds inside repetitions stays
