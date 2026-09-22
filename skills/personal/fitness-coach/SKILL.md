@@ -1,17 +1,17 @@
 ---
 name: fitness-coach
-description: Coach Micah's holistic strength, stability, rehabilitation, cardio, mobility, and recovery programming from approved Obsidian goals and constraints, Fitbod/Axon history, calendar context, weather, symptoms, and feedback. Use when onboarding or reassessing fitness, planning or reviewing a training block, asking what workout is next, publishing a workout to an execution app, analyzing a completed workout or unexpectedly hard run, reporting pain or injury, adapting a workout, importing history, explaining programming, or contributing fitness to self-sync.
+description: Coach Micah's holistic strength, stability, rehabilitation, cardio, mobility, and recovery programming from approved Obsidian goals and constraints, Fitbod/Axon history, calendar context, weather, symptoms, and feedback. Use when onboarding or reassessing fitness, planning or reviewing a training block, asking what workout is next, creating or saving a reusable workout program, publishing a workout to an execution app, analyzing a completed workout or unexpectedly hard run, reporting pain or injury, adapting a workout, importing history, explaining programming, or contributing fitness to self-sync.
 ---
 
 # Fitness Coach
 
 ## Purpose
 
-Maintain one explainable coaching loop from goals and constraints through programming, execution, feedback, and adaptation. Axon is the only programming authority. Hevy, Apple Workout, and other apps are execution interfaces.
+Maintain one explainable coaching loop from goals and constraints through programming, execution, feedback, and adaptation. Axon is the only programming authority. The `workout` CLI is the canonical local store for reusable Templates, Programs, and dated Sessions; it persists coach-authored prescriptions without replacing Axon sequence authority. Hevy, Apple Workout, and other apps are execution interfaces.
 
 ## Start Here
 
-1. Identify the workflow: onboarding/reassessment, next workout, execution handoff, completed-workout analysis, pain/injury, weekly self-sync, block review, plan explanation, or history import.
+1. Identify the workflow: onboarding/reassessment, next workout, reusable Program creation, execution handoff, completed-workout analysis, pain/injury, weekly self-sync, block review, plan explanation, or history import.
 2. Read the required Obsidian intent and current execution history before asking questions.
 3. Ask one question at a time only when the answer could materially change the plan and cannot be derived reliably.
 4. Keep approved intent separate from generated operational state.
@@ -61,6 +61,7 @@ Do not read or create legacy `Run Training Plan.md` or `runs/*.md` projections a
 
 - **Onboard/reassess:** analyze history first, interview to confirm hypotheses, draft a baseline and block, then require approval before activation.
 - **What's next:** return next strength/rehab, recommended cardio, valid 60- and 30-minute cardio options, and the best overall choice.
+- **Reusable Program creation:** when Micah asks to create, save, or build a workout program or routine, author it from approved coaching inputs and use the `workout-cli` skill to persist and verify the Template and Program. When it is meant to run in Axon Training, complete the structured Program publication and app-facing verification required by `workout-cli` before creating a requested dated Session or reporting the handoff complete. A local Program, card preview, and provider publication are distinct from Training visibility and Startability. Do not stop at a chat-only prescription unless Micah explicitly asks for a draft. An undated Program does not alter the weekly sequence and does not create a dated Session.
 - **Execution handoff:** validate exact duration, completion policy, identity, and scheduled time before publishing a complete Axon Training plan snapshot or a platform-specific Hevy/Apple Workout handoff. Never require an execution app to infer programming.
 - **Workout review:** verify fresh completion data, compare intended and actual load, incorporate terrain and historical weather when material, record feedback, and adapt only within approved guardrails.
 - **Pain/injury:** record the report, screen red flags, gather missing context, guide only appropriate low-risk tests, and adapt programming without diagnosing.

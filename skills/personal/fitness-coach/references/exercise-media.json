@@ -28,6 +28,38 @@
       "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Band_Pull_Apart"
     }
   },
+  "barbell-deadlift": {
+    "aliases": [
+      "Barbell deadlift",
+      "Conventional barbell deadlift"
+    ],
+    "free_exercise_db_id": "Barbell_Deadlift",
+    "instructions": {
+      "overview": "Lift a bar from the floor by pressing through the floor and standing tall while the spine stays braced and neutral.",
+      "steps": [
+        "Stand with the bar over mid-foot, hinge to grip it just outside the legs, and set the back long with the lats engaged.",
+        "Push the floor away while the bar stays close to the shins; let the hips and shoulders rise together until standing tall.",
+        "Reverse the hinge under control, bend the knees once the bar reaches them, and set the bar down without rounding or bouncing."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Barbell_Deadlift"
+    }
+  },
+  "bent-over-barbell-row": {
+    "aliases": [
+      "Bent-over barbell row",
+      "Bent over barbell row"
+    ],
+    "free_exercise_db_id": "Bent_Over_Barbell_Row",
+    "instructions": {
+      "overview": "Row the bar toward the lower ribs from a stable hip hinge, keeping the torso quiet and the shoulders away from the ears.",
+      "steps": [
+        "Hinge with soft knees until the torso is near parallel to the floor, then hold the bar with an overhand grip just outside the legs.",
+        "Brace the trunk and pull the elbows toward the hips until the bar reaches the lower ribs or upper abdomen without using momentum.",
+        "Pause briefly, then lower the bar with control while maintaining the same hinge and neutral spine."
+      ],
+      "demonstrationURL": "https://github.com/yuhonas/free-exercise-db/tree/main/exercises/Bent_Over_Barbell_Row"
+    }
+  },
   "chest-supported-dumbbell-row": {
     "free_exercise_db_id": "Dumbbell_Incline_Row",
     "instructions": {

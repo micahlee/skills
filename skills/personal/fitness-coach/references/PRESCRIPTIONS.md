@@ -74,6 +74,42 @@ The 20-minute minimum independently delivers useful stimulus. Completing it adva
 
 Specify ordered exercises, sets, reps, load/calibration, RIR, rest, meaningful tempo/ROM, rehab dose, substitutions, stop rules, warmup, and cooldown.
 
+### Reusable workout programs
+
+When Micah asks to create, save, or build a workout program or routine, the
+deliverable includes persistence in the canonical local workout store through
+the `workout-cli` skill. A prose prescription alone is incomplete unless Micah
+explicitly asks for a draft or review only.
+
+- Preserve the approved coaching decision in a reusable Template and undated
+  Program. Do not create a dated Session unless Micah asks to schedule or execute
+  it.
+- Resolve exercises from `workout exercise list` and use canonical IDs and
+  metric schemas. Do not create duplicates for catalog movements.
+- Put supported metrics in Program targets. Preserve unsupported load, rest,
+  RIR, tempo, progression, and modification rules exactly in item notes; never
+  invent a target field. Apply the exercise schema's exact load interpretation
+  when it declares total, per-hand, bodyweight-plus, assistance, bodyweight,
+  unloaded, or machine-setting semantics.
+- Represent every ramp, work set, bilateral timed occurrence, repeated hold,
+  side switch, and grouped accessory in source order. A one-set ramp may still
+  need after-exercise rest. A hold under five seconds inside repetitions stays
+  an open-ended rep card with the hold in its instructions.
+- Store duration routes, anchor-day intent, block identity, progression,
+  modification ladders, and success criteria in namespaced Program metadata or
+  exact item notes as appropriate.
+- Use deterministic idempotency keys. Read back the exact Program revision and
+  compare its stable exercise IDs/revisions, block paths, item order, group
+  membership, targets, notes, and metadata.
+- Run the `workout-cli` card preflight against the read-back Program before an
+  app publication attempt. Review every ordered card's side, repetitions or
+  timer, load interpretation, RIR, between-set rest, after-exercise rest, and
+  group placement.
+- Program persistence does not advance Axon's sequence state or prove Training
+  visibility/Startability. A request to change a scheduled Axon workout remains
+  an adaptation or execution handoff and follows the corresponding approval and
+  deployed publication rules.
+
 ### Strength Warmups and Cooldowns
 
 - Program warmups and cooldown stretches as ordered exercises in the execution interface, not only as prose.
@@ -311,6 +347,13 @@ Targets, cardio profiles, timer cards, spoken scripts, and media are plan data,
 not application behavior. The app records the native HealthKit workout and
 executes these values without choosing or altering them.
 
+Publication is atomic: enrich media and instructions, generate audio, and run
+every gate before emitting one approved revision. Missing required
+media/instructions, invalid execution modes, mismatched card semantics, failed
+duration validation, or publication failure must leave the last valid revision
+intact. Missing or stale app-facing verification is reported as unverified, not
+as a successful Training handoff.
+
 For exercise examples, use a reputable licensed source. The default open
 catalog is [Free Exercise DB](https://github.com/yuhonas/free-exercise-db):
 its exercise dataset and paired images are released under the Unlicense. Use
@@ -338,7 +381,11 @@ Validate before publication:
    references the shared side-switch asset;
 9. cardio profile segments and executable timer cards agree one-for-one in
    order, duration, purpose, and target;
-10. each workout's 20-/30-/60-minute contract is arithmetically correct.
+10. each workout's 20-/30-/60-minute contract is arithmetically correct. A
+    normal strength route publishes 30–45 minutes, has a conservative lower
+    bound of at least 25 minutes, and an expected duration of 30–45 minutes.
+    The 20-minute route is an explicitly selected executable abbreviated path,
+    never a silent shortening of the normal route.
 11. generated coaching audio is deduplicated, decodes successfully, and the
     enriched plan remains below the generator's payload limit.
 
