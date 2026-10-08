@@ -11,8 +11,8 @@
   ],
   "skills": [
     "./skills/engineering/setup-matt-pocock-skills",
-    "./skills/gamocosm-server-commands",
     "./skills/finance/monarch-money",
+    "./skills/gamocosm-server-commands",
     "./skills/meal-planning/plan-to-eat-curate",
     "./skills/meal-planning/plan-to-eat-notes",
     "./skills/music/sonos",
@@ -20,6 +20,7 @@
     "./skills/personal/bible-journal-import",
     "./skills/personal/coma-bible-study",
     "./skills/personal/create-bible-study-recipe",
+    "./skills/personal/crossbar-cli",
     "./skills/personal/daily-dream",
     "./skills/personal/daily-note",
     "./skills/personal/fitness-coach",

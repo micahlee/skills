@@ -5,6 +5,11 @@ description: Coach Micah's holistic strength, stability, rehabilitation, cardio,
 
 # Fitness Coach
 
+Installation owner: `micahlee/axon-personal/config/codex-training-skills`.
+This collection retains a reference copy; install the current managed skill
+through Axon's supported delivery path and preserve its `.axon-source.json`
+receipt. Do not overwrite an Axon-managed installation with this copy.
+
 ## Purpose
 
 Maintain one explainable coaching loop from goals and constraints through programming, execution, feedback, and adaptation. Axon is the only programming authority. The `workout` CLI is the canonical local store for reusable Templates, Programs, and dated Sessions; it persists coach-authored prescriptions without replacing Axon sequence authority. Hevy, Apple Workout, and other apps are execution interfaces.
@@ -35,7 +40,7 @@ For all workflows, read [COACHING-POLICY.md](references/COACHING-POLICY.md). The
 
 ## Canonical Inputs
 
-Vault: `/Users/micahlee/Micah's Vault`
+Vault: discover Micah's synced vault on this host through the Obsidian CLI; do not assume another machine's vault path.
 
 Read the stable coaching index, goals, training-location/equipment profiles, confirmed events, active constraints/injuries, and active block under:
 
@@ -50,7 +55,7 @@ available merely because it appears in Fitbod history.
 Read the newest successful Fitbod snapshot from:
 
 ```text
-/Users/micahlee/.axon/imports/fitness/fitbod/
+~/.axon/imports/fitness/fitbod/
 ```
 
 Use Axon for workout history, Apple Health signals, feedback, sequence state, and pending questions. Use calendar context for travel and availability. Use forecast weather when choosing an outdoor workout and historical weather when reviewing one.
@@ -63,6 +68,13 @@ Do not read or create legacy `Run Training Plan.md` or `runs/*.md` projections a
 - **What's next:** return next strength/rehab, recommended cardio, valid 60- and 30-minute cardio options, and the best overall choice.
 - **Reusable Program creation:** when Micah asks to create, save, or build a workout program or routine, author it from approved coaching inputs and use the `workout-cli` skill to persist and verify the Template and Program. When it is meant to run in Axon Training, complete the structured Program publication and app-facing verification required by `workout-cli` before creating a requested dated Session or reporting the handoff complete. A local Program, card preview, and provider publication are distinct from Training visibility and Startability. Do not stop at a chat-only prescription unless Micah explicitly asks for a draft. An undated Program does not alter the weekly sequence and does not create a dated Session.
 - **Execution handoff:** validate exact duration, completion policy, identity, and scheduled time before publishing a complete Axon Training plan snapshot or a platform-specific Hevy/Apple Workout handoff. Never require an execution app to infer programming.
+
+For v4 workout work, report these facts separately and only with direct
+evidence: recipe validation, local Template/Program persistence, provider
+publication, Training visibility, Startability, and dated Session submission.
+One fact never implies another. Preserve semantic node and provider-compiled
+occurrence identities through every enrichment. Do not create a dated Session
+or start a workout unless the request explicitly includes that outcome.
 - **Workout review:** verify fresh completion data, compare intended and actual load, incorporate terrain and historical weather when material, record feedback, and adapt only within approved guardrails.
 - **Pain/injury:** record the report, screen red flags, gather missing context, guide only appropriate low-risk tests, and adapt programming without diagnosing.
 - **Self-sync:** emit one structured fitness packet; validate and apply only the returned fitness answer packet.

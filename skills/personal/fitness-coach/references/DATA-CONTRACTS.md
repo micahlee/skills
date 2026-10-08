@@ -2,7 +2,7 @@
 
 ## Obsidian
 
-Use `/Users/micahlee/Micah's Vault/01 - PERSONAL/02 - AREAS/Workouts/` for:
+Resolve Micah's synced vault on this host, then use its `01 - PERSONAL/02 - AREAS/Workouts/` directory for:
 
 - `Workouts.md`: stable index linking goals, equipment profiles,
   constraints/injuries, confirmed events, and active block;
@@ -36,7 +36,7 @@ Use the `fitness-coach-events` profile for agent-authored derived state:
 Create the profile when absent with only these publish scopes:
 
 ```sh
-/Users/micahlee/.local/bin/axon clients create \
+axon clients create \
   --scope events:publish:dashboard.health-fitness.next-run-up.cached \
   --scope events:publish:fitness.coaching.workout-reviewed \
   --scope events:publish:fitness.training.plan.approved \
@@ -108,13 +108,13 @@ Keep observed, derived, and joined data distinct:
 
 ## Fitbod Seed
 
-Run:
+From this skill directory, run:
 
 ```sh
-/Users/micahlee/projects/skills/skills/personal/fitness-coach/scripts/import-fitbod.sh
+scripts/import-fitbod.sh
 ```
 
-Snapshots live under `/Users/micahlee/.axon/imports/fitness/fitbod/`. Select the newest directory whose `manifest.json` has `"status": "complete"`.
+Snapshots live under `~/.axon/imports/fitness/fitbod/`. Select the newest directory whose `manifest.json` has `"status": "complete"`.
 
 The seed contains:
 
