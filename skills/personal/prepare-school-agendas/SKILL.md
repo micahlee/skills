@@ -50,7 +50,10 @@ content, date logic, parent reports, and filing rules.
    the `documents` skill. Never cite or hand off a path other than the exact
    `published_docx` returned by this command.
 8. Save final files under
-   `/Users/micahlee/Library/CloudStorage/OneDrive-Personal/FAMILY/SCHOOL/Printable Agendas/2026-2027/YYYY-MM-DD/`.
+   `~/Library/CloudStorage/OneDrive-Personal/FAMILY/SCHOOL/Printable Agendas/2026-2027/YYYY-MM-DD/`.
+   Expand `~` using this host's home directory and verify that the established
+   OneDrive folder is present and synchronized before publishing. Do not create
+   a substitute folder when OneDrive is missing.
    The top-level folder is shared once with Carrie, Chasen, and Samuel; future
    dated folders inherit that access. Do not change sharing on routine runs.
 

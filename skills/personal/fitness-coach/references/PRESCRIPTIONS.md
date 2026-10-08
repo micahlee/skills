@@ -223,7 +223,7 @@ fitness-coach-next:YYYY-MM-DD:TRIGGER
 Publish with:
 
 ```sh
-/Users/micahlee/.local/bin/axon events publish \
+axon events publish \
   --profile fitness-coach-events \
   --json /tmp/fitness-coach-next.json \
   --idempotency-key "fitness-coach-next:YYYY-MM-DD:TRIGGER" \

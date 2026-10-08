@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-preferred_cli=/Users/micahlee/.local/bin/classreach
+preferred_cli="${HOME}/.local/bin/classreach"
 if [ -x "$preferred_cli" ]; then
   cli_path=$preferred_cli
 elif command -v classreach >/dev/null 2>&1; then

@@ -3,7 +3,7 @@ set -euo pipefail
 
 from_date="$(date -u -v-1y +%F)"
 to_date="$(date -u +%F)"
-output_root="/Users/micahlee/.axon/imports/fitness/fitbod"
+output_root="${HOME}/.axon/imports/fitness/fitbod"
 history_limit=1200
 metrics_limit=500
 

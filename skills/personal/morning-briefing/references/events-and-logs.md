@@ -58,7 +58,7 @@ Recommended payload:
 In `send` mode, after rendering the message, publish the Telegram request event through the Axon CLI:
 
 ```sh
-/Users/micahlee/.local/bin/axon events publish \
+axon events publish \
   --profile morning-briefing-events \
   --json /tmp/morning-briefing-event.json \
   --subject "daily-note:YYYY-MM-DD" \
@@ -69,7 +69,7 @@ In `send` mode, after rendering the message, publish the Telegram request event 
 If the profile is missing, create it:
 
 ```sh
-/Users/micahlee/.local/bin/axon clients create \
+axon clients create \
   --scope events:publish:personal.morning-briefing \
   --profile morning-briefing-events \
   --expires 8760h \

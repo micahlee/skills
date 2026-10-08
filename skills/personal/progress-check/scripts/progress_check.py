@@ -75,7 +75,7 @@ def main() -> int:
     publish.add_argument("--analysis", required=True)
     publish.add_argument("--message", required=True)
     publish.add_argument("--profile", default="")
-    publish.add_argument("--axon-bin", default="/Users/micahlee/.local/bin/axon")
+    publish.add_argument("--axon-bin", default="axon")
     publish.add_argument("--state", default="")
     publish.add_argument("--dry-run", action="store_true")
 

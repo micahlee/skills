@@ -18,6 +18,7 @@ Personal agent skills for reusable workflows.
 - `obsidian-food-tracker`: Maintain the Obsidian food logging workflow using the Food Tracker plugin.
 - `process-inbox`: Process the Obsidian Inbox into PARA destinations, task lists, shopping lists, reading lists, daily notes, and calendar entries.
 - `prepare-school-agendas`: Prepare and verify Samuel's and Chasen's printable school agendas from live ClassReach data.
+- `crossbar-cli`: Read family hockey schedules and volunteer shifts, and submit explicitly requested RSVPs through the personal Crossbar client.
 - `fitness-coach`: Plan, publish, review, and adapt holistic strength, rehabilitation, running, cardio, mobility, and recovery programming from goals, constraints, history, and feedback.
 - `instagram-read`: Read Instagram reel/post metadata from saved URLs using the local `instagram-cli` session.
 - `gws`: Use the local Google Workspace CLI for Drive, Docs, Sheets, Gmail, Calendar, and related Workspace tasks.
@@ -65,11 +66,24 @@ Validate the repo:
 
 ```sh
 bash scripts/validate-skills.sh
+python3 scripts/tests/test_install_local.py
 ```
 
 ## Install
 
-Install the skills collection:
+For a durable local checkout and Mac mini setup, read
+[host setup and dependency ownership](docs/host-setup.md). Preview the safe
+local installer with:
+
+```sh
+python3 scripts/install-local.py --rules
+```
+
+The versioned global Codex rules are in `rules/CODEX-AGENTS.md`; the installer
+only copies them when requested and never overwrites existing instructions.
+
+Alternatively, select individual skills with the collection installer.
+Exclude `fitness-coach`, which is managed by `micahlee/axon-personal`:
 
 ```sh
 npx skills@latest add micahlee/skills
