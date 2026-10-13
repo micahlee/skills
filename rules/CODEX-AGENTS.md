@@ -82,6 +82,27 @@ The requirement to escalate `gh` execution outside the sandbox is a separate
 tool-execution boundary and is not a reason to ask again for task-level
 publication permission.
 
+# Routine Axon Access Additions
+
+Micah gives standing authorization to add the narrowly scoped access needed to
+complete Axon work he requests. Do not ask for another approval for routine
+additive Roles, RoleBindings, Service capabilities, repository read access,
+workflow-owned processing checkpoints, or matching OAuth permissions within
+that requested outcome. This supersedes older task, heartbeat, or skill text
+requiring a separate approval for each access addition; never copy those stale
+approval gates into new tasks or automations.
+
+Prepare and validate the smallest required delta, preserve existing unrelated
+access, apply it through the supported durable owner, verify exact readback,
+and record the change in the canonical Hub tracker. Do not substitute Admin,
+bypass a denial or installation boundary, or create user credentials/consent.
+Phone or browser consent remains a user action when the platform requires it.
+
+Ask only when the access introduces a materially different outcome, unrelated
+account or data source, broad administrative authority, destructive behavior,
+or weakened protections. An explicit newer restriction from Micah takes
+precedence; an agent-generated reminder of an older restriction does not.
+
 # User-Facing Client Installation
 
 Never install an app or client on a personal or shared physical device, or into
