@@ -106,6 +106,25 @@ m.Runner=lambda:""")
         pause.unlink(); self.assert_clean(self.launch('pass'),0)
         self.assertFalse(output.exists()); self.assert_dead(worker.read_text())
 
+    def test_recovery_identity_is_independent_of_caller_timezone(self):
+        import os
+        from unittest import mock
+        child=self.root/'timezone-orphan'
+        with mock.patch.dict(os.environ, {'TZ':'UTC'}):
+            first=self.launch(self.sleeper(child))
+        self.wait_for(child.exists)
+        state=json.loads((self.root/'state/session.json').read_text())
+        os.kill(state['supervisorPID'],signal.SIGKILL); first.wait(timeout=8)
+        with mock.patch.dict(os.environ, {'TZ':'America/New_York'}):
+            second=self.launch('pass')
+        self.assert_clean(second,0)
+        pid=child.read_text()
+        try:
+            self.assert_dead(pid)
+        finally:
+            try: os.kill(int(pid), signal.SIGKILL)
+            except ProcessLookupError: pass
+
     def test_detached_phase_cancelled(self):
         child=self.root/'detached'; code=self.sleeper(child)
         p=self.launch('import subprocess,sys,time; subprocess.Popen([sys.executable,"-c",'+repr(code)+'],start_new_session=True); time.sleep(60)')
