@@ -22,15 +22,21 @@ class Cancelled(BaseException):
         self.signum = signum
 
 
+def identity_environment():
+    # Make exports TZ=UTC; interactive shells may use the local timezone.
+    # Human-readable ps/sysctl identities must compare identically in both.
+    return dict(os.environ, TZ="UTC", LC_ALL="C")
+
+
 def boot_identity():
     linux = Path("/proc/sys/kernel/random/boot_id")
     if linux.exists():
         return linux.read_text().strip()
-    return subprocess.check_output(["sysctl", "-n", "kern.boottime"], text=True).strip()
+    return subprocess.check_output(["sysctl", "-n", "kern.boottime"], text=True, env=identity_environment()).strip()
 
 
 def identity(pid):
-    result = subprocess.run(["ps", "-p", str(pid), "-o", "lstart="], capture_output=True, text=True)
+    result = subprocess.run(["ps", "-p", str(pid), "-o", "lstart="], capture_output=True, text=True, env=identity_environment())
     return result.stdout.strip() or None
 
 
