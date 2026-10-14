@@ -105,10 +105,10 @@ class Runner:
         self.parent = os.getppid()
         self.parent_identity = identity(self.parent)
 
-    def tool(self, *args):
+    def tool(self, *args, timeout=120):
         process = subprocess.Popen(self.simctl + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                    text=True, start_new_session=True)
-        deadline = time.monotonic() + 120
+        deadline = time.monotonic() + timeout
         try:
             while True:
                 try:
@@ -279,7 +279,7 @@ class Runner:
         self.save()  # Register before boot, including partial boot failure.
         return devices
 
-    def execute(self, command, devices, *, timeout=1800, erase=False, setenv=()):
+    def execute(self, command, devices, *, timeout=1800, boot_timeout=600, erase=False, setenv=()):
         process = None
         try:
             for device in devices:
@@ -289,7 +289,10 @@ class Runner:
                     self.tool("erase", device)
                 if self.inventory()[device]["state"] != "Booted":
                     self.tool("boot", device)
-                self.tool("bootstatus", device, "-b")
+                # A cold runtime's data migration may outlive ordinary simctl
+                # commands. It remains bounded and parent cancellation still
+                # stops this owned command before verified device teardown.
+                self.tool("bootstatus", device, "-b", timeout=boot_timeout)
                 for value in setenv:
                     key, content = value.split("=", 1)
                     self.tool("spawn", device, "launchctl", "setenv", key, content)
@@ -394,13 +397,15 @@ def main(argv=None):
     parser.add_argument("--setenv", action="append", default=[])
     parser.add_argument("--wait", type=float, default=3600)
     parser.add_argument("--timeout", type=float, default=1800)
+    parser.add_argument("--boot-timeout", type=float, default=600,
+                        help="Bounded boot-readiness budget, separate from the workload")
     # Split explicitly so runner options remain available after the mode.
     argv = list(sys.argv[1:] if argv is None else argv)
     separator = argv.index("--") if "--" in argv else len(argv)
     args = parser.parse_args(argv[:separator])
     command = argv[separator + 1:]
-    if not all(math.isfinite(v) and v > 0 for v in (args.wait, args.timeout)):
-        parser.error("wait and timeout must be positive")
+    if not all(math.isfinite(v) and v > 0 for v in (args.wait, args.timeout, args.boot_timeout)):
+        parser.error("wait, timeout and boot-timeout must be positive")
     runner = Runner()
     handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
     def cancelled(sig, frame):
@@ -429,7 +434,8 @@ def main(argv=None):
             pairs = json.loads(runner.tool("list", "pairs", "--json"))["pairs"].values()
             if not any(p.get("state", "").startswith("(active,") and {p["phone"]["udid"], p["watch"]["udid"]} == set(devices) for p in pairs):
                 raise RunnerError("Selected devices are not a registered phone/Watch pair")
-        return runner.execute(command, devices, timeout=args.timeout, erase=args.erase, setenv=args.setenv)
+        return runner.execute(command, devices, timeout=args.timeout, boot_timeout=args.boot_timeout,
+                              erase=args.erase, setenv=args.setenv)
     except Cancelled as error:
         return 128 + error.signum
     except (RunnerError, subprocess.TimeoutExpired, OSError, ValueError) as error:
