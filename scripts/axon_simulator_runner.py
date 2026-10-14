@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 import math
+from contextlib import contextmanager
 
 ROOT = Path.home() / "Library/Caches/axon-simulator-runner"
 
@@ -116,7 +117,7 @@ class Runner:
                 except subprocess.TimeoutExpired:
                     self.check_parent()
                     if time.monotonic() > deadline:
-                        raise RunnerError("simctl command timed out")
+                        raise RunnerError("simctl " + args[0] + " command timed out")
         except BaseException:
             os.killpg(process.pid, signal.SIGKILL)
             process.communicate()
@@ -165,17 +166,76 @@ class Runner:
             raise RunnerError("Cleanup incomplete; next admission must recover: " + "; ".join(errors + remaining))
         (self.root / "session.json").unlink(missing_ok=True)
 
+    @contextmanager
+    def queue_guard(self, deadline, watch_parent=True):
+        # Separate short transactions from the host lock held by a running job.
+        # Neither lock inode is replaced, including during crash recovery.
+        with (self.root / "queue.lock").open("a+") as lock:
+            while True:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        raise RunnerError("Timed out waiting for the host simulator slot")
+                    if watch_parent:
+                        self.check_parent()
+                    time.sleep(.02)
+            yield
+
+    def queue_entries(self):
+        path = self.root / "queue.json"
+        entries = json.loads(path.read_text()) if path.exists() else []
+        if not isinstance(entries, list) or any(
+                not isinstance(entry, dict) or type(entry.get("pid")) is not int or entry["pid"] <= 0 or
+                not isinstance(entry.get("identity"), str) or not entry["identity"] or
+                not isinstance(entry.get("bootIdentity"), str) or not entry["bootIdentity"] for entry in entries):
+            raise RunnerError("Invalid simulator waiting queue; refusing admission")
+        return entries
+
+    def save_queue(self, entries):
+        temporary = self.root / "queue.tmp"
+        temporary.write_text(json.dumps(entries) + "\n")
+        temporary.replace(self.root / "queue.json")
+
     def acquire(self, wait):
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         # Never unlink/replace the lock inode; every worktree uses the same path.
         self.lock = (self.root / "host.lock").open("a+")
         deadline = time.monotonic() + wait
+        ticket = {"pid": os.getpid(), "identity": identity(os.getpid()), "bootIdentity": boot_identity()}
+        if not ticket["identity"]:
+            raise RunnerError("Could not verify simulator waiter process identity")
+        queued = False
         announced = False
-        while True:
-            try:
-                fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
+        try:
+            with self.queue_guard(deadline):
+                entries = self.queue_entries()
+                entries.append(ticket)
+                self.save_queue(entries)
+                queued = True
+            while True:
+                acquired = False
+                with self.queue_guard(deadline):
+                    entries = self.queue_entries()
+                    # SIGKILL/host restart may leave a waiter behind. PID alone
+                    # is insufficient because the OS can reuse it.
+                    while entries and entries[0] != ticket and (
+                            entries[0]["bootIdentity"] != ticket["bootIdentity"] or
+                            identity(entries[0]["pid"]) != entries[0]["identity"]):
+                        entries.pop(0)
+                    if entries and entries[0] == ticket:
+                        try:
+                            fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        except BlockingIOError:
+                            pass
+                        else:
+                            entries.pop(0)
+                            acquired = True
+                    self.save_queue(entries)
+                if acquired:
+                    queued = False
+                    break
                 if not announced:
                     print("Waiting for the current simulator session to finish...", file=sys.stderr, flush=True)
                     announced = True
@@ -183,6 +243,13 @@ class Runner:
                     raise RunnerError("Timed out waiting for the host simulator slot")
                 self.check_parent()
                 time.sleep(.2)
+        finally:
+            if queued:
+                # Cancellation/timeout must not strand a live ticket at the
+                # front. If cleanup itself fails, the next admission prunes
+                # this process by its exact identity after it exits.
+                with self.queue_guard(time.monotonic() + 5, watch_parent=False):
+                    self.save_queue([entry for entry in self.queue_entries() if entry != ticket])
         state_file = self.root / "session.json"
         if state_file.exists():
             self.state = json.loads(state_file.read_text())
