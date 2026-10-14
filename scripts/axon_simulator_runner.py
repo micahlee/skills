@@ -141,6 +141,11 @@ class Runner:
         self.parent_identity = identity(self.parent)
         stop_worker(self.state.get("worker"))
         inventory = self.inventory()
+        if "initialDeviceIDs" in self.state:
+            self.state["devices"] = list(set(self.state["devices"]) | {
+                d for d, value in inventory.items() if value["state"] != "Shutdown"
+                and d not in self.state["initialDeviceIDs"]})
+            self.save()
         errors = []
         for device in self.state["devices"]:
             if device in inventory and inventory[device]["state"] != "Shutdown":
@@ -220,9 +225,20 @@ class Runner:
             environment["AXON_SIMULATOR_DEVICES"] = ",".join(devices)
             # Inform nested scripts; only the supervisor can admit new jobs.
             environment["AXON_SIMULATOR_SESSION_PID"] = str(os.getpid())
-            process = subprocess.Popen(command, env=environment, start_new_session=True)
-            self.state["worker"] = {"pid": process.pid, "identity": identity(process.pid), "bootIdentity": boot_identity()}
-            self.save()
+            # The worker cannot execute before its recovery identity is durable.
+            # If the supervisor dies in this window, pipe EOF exits the worker.
+            read_fd, write_fd = os.pipe()
+            gate = "import os,sys; fd=int(sys.argv[1]); ready=os.read(fd,1); os.close(fd); " + \
+                   "sys.exit(125) if ready!=b'1' else os.execvpe(sys.argv[2],sys.argv[2:],os.environ)"
+            try:
+                process = subprocess.Popen([sys.executable, "-c", gate, str(read_fd)] + command,
+                                           env=environment, start_new_session=True, pass_fds=(read_fd,))
+                self.state["worker"] = {"pid": process.pid, "identity": identity(process.pid), "bootIdentity": boot_identity()}
+                self.save()
+                os.write(write_fd, b"1")
+            finally:
+                os.close(read_fd)
+                os.close(write_fd)
             deadline = time.monotonic() + timeout
             while process.poll() is None:
                 if time.monotonic() >= deadline:
