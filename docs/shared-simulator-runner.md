@@ -43,3 +43,9 @@ Runner processes already started before an update retain their loaded version.
 Do not interrupt unrelated jobs to upgrade them; restart only a task's own
 waiting invocation if needed. Both versions continue using the unchanged host
 lock and session recovery path.
+
+Cold simulator boot readiness has a separate `--boot-timeout` budget (600
+seconds by default). Ordinary simctl commands retain their 120-second limit;
+`--timeout` still bounds the admitted workload. A boot timeout or cancellation
+prevents the workload from starting and tears down only the registered owned
+devices before releasing the same host slot.

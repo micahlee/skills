@@ -16,7 +16,13 @@ if args[:2]==['list','devices']: print(json.dumps({'devices':{'com.apple.CoreSim
 elif args[0]=='boot': data[args[1]]['state']='Booted'; p.write_text(json.dumps(data))
 elif args[0]=='shutdown' and Path(str(p)+'.fail').exists(): raise SystemExit(1)
 elif args[0]=='shutdown': data[args[1]]['state']='Shutdown'; p.write_text(json.dumps(data))
-elif args[0] in ('bootstatus','spawn','erase'): pass
+elif args[0]=='bootstatus':
+    delay=Path(str(p)+'.boot-delay')
+    if delay.exists():
+        import time
+        Path(str(p)+'.boot-waiting').touch()
+        time.sleep(float(delay.read_text()))
+elif args[0] in ('spawn','erase'): pass
 else: raise SystemExit(2)
 '''
 class SimulatorRunnerTests(unittest.TestCase):
@@ -67,6 +73,16 @@ class SimulatorRunnerTests(unittest.TestCase):
             p.send_signal(sig); self.assert_clean(p,128+sig); self.assert_dead(child.read_text())
     def test_timeout(self):
         self.assert_clean(self.launch('import time; time.sleep(60)','--timeout','0.3'),1)
+    def test_boot_readiness_budget_and_timeout_cleanup(self):
+        delay=Path(str(self.inventory)+'.boot-delay'); delay.write_text('0.8')
+        self.assert_clean(self.launch('pass','--boot-timeout','2'),0)
+        self.assert_clean(self.launch('raise Exception("boot timeout must not start workload")','--boot-timeout','0.1'),1)
+    def test_cancel_during_boot_readiness(self):
+        Path(str(self.inventory)+'.boot-delay').write_text('60')
+        marker=Path(str(self.inventory)+'.boot-waiting')
+        process=self.launch('raise Exception("cancelled boot must not start workload")','--boot-timeout','120')
+        self.wait_for(marker.exists)
+        process.terminate(); self.assert_clean(process,143)
     def test_contention(self):
         start=self.root/'started'; release=self.root/'release'; second=self.root/'second'
         first=self.launch('import time; from pathlib import Path; Path('+repr(str(start))+').touch(); p=Path('+repr(str(release))+'); \nwhile not p.exists(): time.sleep(.05)')
