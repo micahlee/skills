@@ -85,6 +85,27 @@ class SimulatorRunnerTests(unittest.TestCase):
         first.wait(timeout=8)
         self.assert_clean(self.launch('pass'),0); self.assert_dead(child.read_text())
 
+    def test_supervisor_killed_before_worker_registration(self):
+        import os
+        pause=self.root/'before-save'; worker=self.root/'gate-worker'; output=self.root/'must-not-run'
+        source=self.launcher.read_text()
+        source=source.replace("m.Runner=lambda:", """original_save=original.save
+def paused_save(self):
+    if self.state.get('worker') and Path("""+repr(str(pause))+""").exists():
+        import time
+        Path("""+repr(str(worker))+""").write_text(str(self.state['worker']['pid']))
+        time.sleep(60)
+    original_save(self)
+original.save=paused_save
+m.Runner=lambda:""")
+        self.launcher.write_text(source); pause.touch()
+        first=self.launch('from pathlib import Path; Path('+repr(str(output))+').touch()')
+        self.wait_for(worker.exists)
+        state=json.loads((self.root/'state/session.json').read_text())
+        os.kill(state['supervisorPID'],signal.SIGKILL); first.wait(timeout=8)
+        pause.unlink(); self.assert_clean(self.launch('pass'),0)
+        self.assertFalse(output.exists()); self.assert_dead(worker.read_text())
+
     def test_detached_phase_cancelled(self):
         child=self.root/'detached'; code=self.sleeper(child)
         p=self.launch('import subprocess,sys,time; subprocess.Popen([sys.executable,"-c",'+repr(code)+'],start_new_session=True); time.sleep(60)')
