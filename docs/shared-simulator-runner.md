@@ -30,3 +30,16 @@ copy the runner into each worktree or change its shared state path. Existing
 threads must read this rule before their next simulator operation.
 
 The lock is cooperative: manually booted simulators or tools that ignore these instructions are detected as conflicts. It is not a macOS access-control boundary. Do not run a second simulator while a session is active. The caller-facing process has a separate supervisor, which cancels the job on parent death. After supervisor loss or host restart, the next admission recovers its recorded worker and devices before proceeding. Cleanup failure leaves recovery state and blocks subsequent admission. Device definitions are retained; shutdown does not delete them.
+
+New invocations enroll in a FIFO waiting queue before attempting the same host
+lock. A newer job cannot pass an enrolled waiter between polling attempts.
+Cancellation and queue timeout remove that invocation's ticket; dead or reused
+process identities and tickets from a previous host boot are pruned before
+admission. Queue bookkeeping contains process identities only. The running job
+continues holding the host lock through verified teardown. The `--wait` budget
+remains separate from the admitted job's `--timeout` budget.
+
+Runner processes already started before an update retain their loaded version.
+Do not interrupt unrelated jobs to upgrade them; restart only a task's own
+waiting invocation if needed. Both versions continue using the unchanged host
+lock and session recovery path.
