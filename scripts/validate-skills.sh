@@ -106,4 +106,9 @@ PY
   fi
 fi
 
+# The host simulator runner is shared agent infrastructure in this repository.
+# Its process tests use synthetic devices and run on both macOS and Linux CI.
+if [ "$fail" -eq 0 ]; then
+  python3 "$repo/scripts/tests/test_simulator_runner.py" || fail=1
+fi
 exit "$fail"

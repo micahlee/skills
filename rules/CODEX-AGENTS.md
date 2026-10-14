@@ -144,3 +144,32 @@ pointers and never active planning writes.
 ## Codex Service Tier Preference
 
 Micah requests Fast mode disabled for this session and all future Codex sessions created by agents. Use Standard processing (service_tier = "default"); never explicitly request fast, priority, or ultrafast. Before spawning a session, verify that the supported launch route can honor Standard processing. If a launch tool supports only a faster tier or cannot honor this preference, keep the work in the current session and report the limitation instead of spawning a Fast-mode worker. Do not infer that disabling features.fast_mode clears an existing session's service-tier override.
+
+# Shared Apple Simulator Sessions
+
+All threads on a Mac must use `$HOME/.local/bin/axon-simulator-run` for work
+that boots or uses a simulator. The runner owns one host-wide slot across all
+repositories and worktrees and holds it until verified shutdown. Never use raw
+`simctl boot`, direct simulator `xcodebuild test`, Xcode previews, or another
+simulator tool to bypass it. Build-only work, package tests, research, and other
+non-simulator work may remain parallel.
+
+- Tests: `axon-simulator-run xcodebuild -- <xcodebuild arguments without the executable>`.
+  Supply one exact simulator destination; the runner disables parallel clones.
+- Install/launch/screenshots: `axon-simulator-run run --device <UDID> --timeout 900 -- <script>`.
+  Keep the entire journey inside that script. `AXON_SIMULATOR_UDID` is its owned
+  device. Shutdown occurs when the script ends; never hold a slot while waiting
+  for a human answer. For interactive inspection, use a bounded script/session.
+- Disposable fixtures: `run --name <fixture> --erase -- <script>`; erasure is
+  explicit and applies only to that selected development fixture.
+- Phone/Watch checks: `run --paired --device <phone-UDID> --device <watch-UDID> -- <script>`.
+  This is one exclusive job, with the explicit paired-device exception.
+- Use `status` for ownership and `recover` for stale managed sessions. Do not
+  delete the lock file or kill unrelated simulators. Unexpected active devices
+  block admission; resolve them with their owning task instead of bypassing.
+
+Use updated repository qualification entry points. If the runner is missing,
+install it using the skills repository's `scripts/install_simulator_runner.py` from a
+clean freshly fetched `origin/main`; never install a task-branch runner. Do not
+copy the runner into each worktree or change its shared state path. Existing
+threads must read this rule before their next simulator operation.
