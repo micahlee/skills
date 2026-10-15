@@ -221,11 +221,20 @@ def worker(config, job):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['run', '_worker', 'cleanup'])
+    parser.add_argument('mode', choices=['run', '_worker', 'cleanup', 'check'])
     parser.add_argument('--config')
-    parser.add_argument('--job', required=True)
+    parser.add_argument('--job')
     parser.add_argument('--timeout', type=int, default=3600)
     args = parser.parse_args()
+    if args.mode == 'check':
+        if not args.config or args.job is not None:
+            raise Failure('Read-only check requires a config and no job identity')
+        config = frozen_config(str(Path(args.config).resolve(strict=True)))
+        eligible(config)
+        print(json.dumps({'eligible': True, 'profile': guest_profile(config)}))
+        return 0
+    if not args.job:
+        raise Failure('A job attempt is required for guest execution or cleanup')
     vm_name(args.job)
     if args.mode == 'cleanup':
         session = json.loads((Path.home() / 'Library/Caches/axon-simulator-runner/session.json').read_text())
