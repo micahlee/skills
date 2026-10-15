@@ -66,6 +66,19 @@ class VMExecutorTests(unittest.TestCase):
             with patch.object(vm.sys,'platform','darwin'),patch.object(vm.subprocess,'check_output',return_value=power),patch.object(vm,'verify_tart') as verify:
                 with self.assertRaises(vm.Failure):vm.eligible(self.config)
                 verify.assert_not_called()
+    def test_stock_clone_reserves_whole_disk_rewrite_before_effects(self):
+        rows=[{'Name':vm.IMAGE,'Source':'OCI','Running':False}]
+        for gib,admitted in ((150,False),(170,True)):
+            def output(argv,**kwargs):
+                return "Now drawing from 'AC Power'" if 'pmset' in argv[0] else str(24*1024**3)
+            with patch.object(vm.sys,'platform','darwin'),patch.object(vm.subprocess,'check_output',side_effect=output),patch.object(vm.shutil,'disk_usage',return_value=type('Usage',(),{'free':gib*1024**3})()),patch.object(vm,'verify_tart') as verify,patch.object(vm,'verify_helper'),patch.object(vm,'inventory',return_value=rows):
+                if admitted:
+                    vm.eligible(self.config)
+                    verify.assert_called_once()
+                else:
+                    with self.assertRaises(vm.Failure):vm.eligible(self.config)
+                    verify.assert_not_called()
+
     def test_guest_toolchain_rejects_other_sdk_before_alias_creation(self):
         selected=subprocess.CompletedProcess([],0,'/Applications/Xcode_26.app/Contents/Developer\n','')
         with patch.object(vm,'call',return_value=selected) as call:
