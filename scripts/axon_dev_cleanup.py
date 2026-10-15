@@ -54,14 +54,17 @@ def process_paths():
     # lsof failure must block deletion, not look like an idle host. Do not log
     # process arguments (which may contain credentials).
     text = run(['lsof', '-a', '-u', str(os.getuid()), '-Fn'], timeout=30)
-    paths = [Path(row[1:]).resolve() for row in text.splitlines() if row.startswith('n/')]
+    # lsof supplies kernel paths. Do not stat/resolve every open file (including
+    # network volumes); deduplicate lexically to keep maintenance inexpensive.
+    paths = {row[1:] for row in text.splitlines() if row.startswith('n/')}
     if not paths:
         raise RuntimeError('Cannot establish active process directories')
     return paths
 
 
 def busy(root, paths):
-    return any(p == root or root in p.parents for p in paths)
+    prefix = str(root)
+    return any(str(p) == prefix or str(p).startswith(prefix + '/') for p in paths)
 
 
 def safe_output(root, relative):
