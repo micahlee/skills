@@ -82,6 +82,43 @@ waiters are idle. Older processes do not understand external-resource cleanup;
 do not mix them with host-mode sessions. The lock and recovery directory stay
 unchanged.
 
+## Disposable Apple CI guest executor (AXON-2790)
+
+The same main-only installer provides `axon-ci-vm`. It is a physical resource
+executor, not a scheduler, runner registration service or paid-budget authority.
+No daemon, image download or VM starts on installation.
+
+The current qualified configuration accepts only the pinned Tart 2.41.0 arm64
+executable and Softnet 0.24.1 helper hashes in source, with the pinned Xcode 27
+image already cached. It requires AC power, 24 GiB host RAM, 100 GiB free disk,
+and exactly one stopped qualified base in the configured Tart cache. This stock
+configuration is for the mini; do not install its image on the MacBook.
+
+An operator-owned JSON config contains only absolute `tart` and `tartHome` paths.
+Invoke `axon-ci-vm run --config /absolute/config.json --job <canonical-UUID>`
+with JSON `{"argv":["/absolute/guest/command"],"stdin":"..."}` on stdin.
+Single-job JIT credentials may use that stdin; personal tokens must never enter
+the guest. Requests are bounded to 256 KiB and aren't persisted on the host.
+The worker starts only under the shared host slot. It uses 8 CPUs/14 GiB RAM,
+no host shares/UI/clipboard/accessory passthrough, public DNS, and Softnet
+host/private/link-local/CGNAT denial. IPv6 frames are discarded by this pinned
+Softnet implementation. Guest simulator journeys still need the guest runner.
+
+An exclusive durable resource record precedes cloning. Frozen tool/cache paths
+and the exact random guest name survive cancellation or supervisor loss. Only
+the recorded shared-runner cleanup callback may stop/delete that guest; failures
+preserve recovery state and block further admission. Other guests are preserved
+and prevent new work. Each job deletes its clone; only the base is retained.
+`~/Library/Caches/axon-ci-vms/paused` stops new admission (including queued work)
+without cancelling accepted work. Remove that file to resume. There is no idle
+VM, guest cache, persistent runner or background polling.
+
+The host-slot wait is five minutes; workload timeout defaults to one hour and is
+bounded to two hours. A trusted dispatcher must interpret capacity failure,
+recheck freshness and pause/power state, and atomically reserve any paid cloud
+fallback before dispatch. This tool alone never starts cloud jobs or creates
+GitHub credentials. Its cleanup deadline comes from the shared runner.
+
 ## Retired build outputs and legacy fixtures (AXON-2779)
 
 Install from a clean freshly fetched main:

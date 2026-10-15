@@ -38,6 +38,16 @@ try:
 finally:
     stage.unlink(missing_ok=True)
 print('Installed', cleanup_target)
+vm_target = target.parent / 'axon-ci-vm'
+with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as temporary:
+    temporary.write((root / 'scripts/axon_ci_vm.py').read_bytes())
+    stage = Path(temporary.name)
+try:
+    stage.chmod(0o755)
+    os.replace(stage, vm_target)
+finally:
+    stage.unlink(missing_ok=True)
+print('Installed', vm_target, '(no VM or runner started)')
 if schedule:
     state = Path.home() / 'Library/Caches/axon-dev-cleanup'
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
