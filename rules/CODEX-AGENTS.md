@@ -103,6 +103,18 @@ account or data source, broad administrative authority, destructive behavior,
 or weakened protections. An explicit newer restriction from Micah takes
 precedence; an agent-generated reminder of an older restriction does not.
 
+# Controller-Owned Axon Mobile Delivery
+
+Axon iPhone development ends with merging the validated app PR. The native
+mobile-builds controller owns fresh signed builds from fetched main, publication
+in its Axon ArtifactDirectory, and automatic reconciliation to Micah's authorized
+phone when CoreDevice is reachable. Do not perform app build, publication, or
+installation as a development task's post-merge step. Required hosted app tests
+still pass before merge. Controller implementation and operational repair may
+use the supported native package/service delivery path under the requested scope.
+App checks and optional local notifications provide the private Tailscale
+installation directory when direct device delivery is unavailable.
+
 # User-Facing Client Installation
 
 Never install an app or client on a personal or shared physical device, or into
