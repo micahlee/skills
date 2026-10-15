@@ -18,6 +18,9 @@ HELPER = Path('/Library/PrivilegedHelperTools/com.micahlee.axon-ci/softnet')
 HELPER_SHA = 'e5e35d61a6dd7e35a3134732e766c897b7cb6f097080ff00e1e75adeab0471c7'
 TART_SHA = '6c2032761b3c4363767ac93915728107a756d672da83973b2a0343dc033eda52'
 IMAGE = 'ghcr.io/cirruslabs/macos-golden-gate-xcode@sha256:324ea5656dee8ab9b0a0df70fda2cfed8912051ad0eca3b1b883bf6ddac88fab'
+# A COW clone may overwrite the entire 140-GB disk, not just guest free space.
+# Keep at least 20 GiB for the host even at that maximum write footprint.
+MIN_STOCK_FREE_GIB = 160
 BLOCK = '@host,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,169.254.0.0/16'
 
 class Failure(RuntimeError):
@@ -111,8 +114,8 @@ def eligible(config):
     if "'AC Power'" not in power:
         raise Failure('Local CI requires AC power')
     ram = int(subprocess.check_output(['/usr/sbin/sysctl', '-n', 'hw.memsize'], text=True))
-    if ram < 24 * 1024**3 or shutil.disk_usage(config['tartHome']).free < 100 * 1024**3:
-        raise Failure('Stock image requires 24 GiB RAM and 100 GiB free disk')
+    if ram < 24 * 1024**3 or shutil.disk_usage(config['tartHome']).free < MIN_STOCK_FREE_GIB * 1024**3:
+        raise Failure('Stock image requires 24 GiB RAM and 160 GiB free disk')
     verify_tart(config)
     verify_helper()
     rows = inventory(config)
