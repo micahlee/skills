@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One bounded simulator session per host, including teardown and crash recovery."""
+"""One bounded simulator or heavy host job, including teardown and crash recovery."""
 from __future__ import annotations
 import argparse
 import fcntl
@@ -147,6 +147,19 @@ class Runner:
         self.parent = os.getppid()
         self.parent_identity = identity(self.parent)
         stop_worker(self.state.get("worker"))
+        self.state["worker"] = None
+        if self.state.get("hostCleanup"):
+            # External resources (for example a VM) can outlive the command's
+            # process tree. Retain the slot and recovery record until their
+            # owner has verified idempotent cleanup.
+            process = self.start_worker(self.state["hostCleanup"], os.environ.copy())
+            try:
+                if process.wait(timeout=60) != 0:
+                    raise RunnerError("Host resource cleanup failed; admission remains blocked")
+            finally:
+                stop_worker(self.state.get("worker"))
+                self.state["worker"] = None
+                self.save()
         inventory = self.inventory()
         if "initialDeviceIDs" in self.state:
             self.state["devices"] = list(set(self.state["devices"]) | {
@@ -305,6 +318,33 @@ class Runner:
         self.save()  # Register before boot, including partial boot failure.
         return devices
 
+    def select_host(self, cleanup):
+        inventory = self.inventory()
+        if any(device["state"] != "Shutdown" for device in inventory.values()):
+            raise RunnerError("Simulators are active; defer host work to their owner")
+        self.state.update({"devices": [], "initialDeviceIDs": list(inventory),
+                           "supervisorPID": os.getpid(), "mode": "host"})
+        if cleanup:
+            self.state["hostCleanup"] = cleanup
+        self.save()
+
+    def start_worker(self, command, environment):
+        # Register the exact process identity before allowing any effect,
+        # including a resource cleanup command during crash recovery.
+        read_fd, write_fd = os.pipe()
+        gate = "import os,sys; fd=int(sys.argv[1]); ready=os.read(fd,1); os.close(fd); " + \
+               "sys.exit(125) if ready!=b'1' else os.execvpe(sys.argv[2],sys.argv[2:],os.environ)"
+        try:
+            process = subprocess.Popen([sys.executable, "-c", gate, str(read_fd)] + command,
+                                       env=environment, start_new_session=True, pass_fds=(read_fd,))
+            self.state["worker"] = {"pid": process.pid, "identity": identity(process.pid), "bootIdentity": boot_identity()}
+            self.save()
+            os.write(write_fd, b"1")
+            return process
+        finally:
+            os.close(read_fd)
+            os.close(write_fd)
+
     def execute(self, command, devices, *, timeout=1800, boot_timeout=600, erase=False, setenv=()):
         process = None
         try:
@@ -323,24 +363,14 @@ class Runner:
                     key, content = value.split("=", 1)
                     self.tool("spawn", device, "launchctl", "setenv", key, content)
             environment = os.environ.copy()
-            environment["AXON_SIMULATOR_UDID"] = devices[0]
+            if devices:
+                environment["AXON_SIMULATOR_UDID"] = devices[0]
+            else:
+                environment.pop("AXON_SIMULATOR_UDID", None)
             environment["AXON_SIMULATOR_DEVICES"] = ",".join(devices)
             # Inform nested scripts; only the supervisor can admit new jobs.
             environment["AXON_SIMULATOR_SESSION_PID"] = str(os.getpid())
-            # The worker cannot execute before its recovery identity is durable.
-            # If the supervisor dies in this window, pipe EOF exits the worker.
-            read_fd, write_fd = os.pipe()
-            gate = "import os,sys; fd=int(sys.argv[1]); ready=os.read(fd,1); os.close(fd); " + \
-                   "sys.exit(125) if ready!=b'1' else os.execvpe(sys.argv[2],sys.argv[2:],os.environ)"
-            try:
-                process = subprocess.Popen([sys.executable, "-c", gate, str(read_fd)] + command,
-                                           env=environment, start_new_session=True, pass_fds=(read_fd,))
-                self.state["worker"] = {"pid": process.pid, "identity": identity(process.pid), "bootIdentity": boot_identity()}
-                self.save()
-                os.write(write_fd, b"1")
-            finally:
-                os.close(read_fd)
-                os.close(write_fd)
+            process = self.start_worker(command, environment)
             deadline = time.monotonic() + timeout
             while process.poll() is None:
                 if time.monotonic() >= deadline:
@@ -413,7 +443,8 @@ def xcode_job(arguments, inventory):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["run", "xcodebuild", "status", "recover", "delete-retired"])
+    parser.add_argument("mode", choices=["run", "xcodebuild", "host", "status", "recover", "delete-retired"])
+    parser.add_argument("--host-cleanup", help="Host mode only: JSON argv for bounded idempotent external-resource cleanup")
     parser.add_argument("--device", action="append", default=[])
     parser.add_argument("--paired", action="store_true", help="Exclusive iPhone/Watch pair exception")
     parser.add_argument("--name")
@@ -451,6 +482,20 @@ def main(argv=None):
                 raise RunnerError("delete-retired accepts only verified retired device IDs")
             runner.delete_retired(args.device)
             return 0
+        if args.host_cleanup and args.mode != "host":
+            raise RunnerError("host-cleanup is available only in host mode")
+        if args.mode == "host":
+            if not command or args.device or args.name or args.paired or args.erase or args.keep_fixture or args.setenv:
+                raise RunnerError("host requires a command and accepts no simulator selection or mutation options")
+            cleanup = None
+            if args.host_cleanup:
+                cleanup = json.loads(args.host_cleanup)
+                if (not isinstance(cleanup, list) or not 1 <= len(cleanup) <= 32 or
+                        not all(isinstance(v, str) and v and "\0" not in v for v in cleanup) or
+                        sum(len(v) for v in cleanup) > 4096 or not os.path.isabs(cleanup[0])):
+                    raise RunnerError("host-cleanup must be bounded JSON argv with an absolute executable")
+            runner.select_host(cleanup)
+            return runner.execute(command, [], timeout=args.timeout)
         if args.mode == "xcodebuild":
             command, devices = xcode_job(command, runner.inventory())
         else:

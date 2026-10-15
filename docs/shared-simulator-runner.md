@@ -53,6 +53,35 @@ seconds by default). Ordinary simctl commands retain their 120-second limit;
 prevents the workload from starting and tears down only the registered owned
 devices before releasing the same host slot.
 
+## Heavy host work without a host simulator (AXON-2790)
+
+`axon-simulator-run host --timeout 1800 -- <command>` uses the same FIFO,
+physical-host slot and crash recovery as simulator sessions, without creating
+or booting a host simulator. Use it for a disposable CI VM or a main build that
+must share capacity with Apple tests. Admission refuses active unowned host
+simulators. The command receives an empty `AXON_SIMULATOR_DEVICES` and no
+`AXON_SIMULATOR_UDID`. Simulator selection/mutation options are rejected.
+
+External resources can survive their launcher's process tree. A VM owner must
+supply `--host-cleanup '["/absolute/protected-main/cleanup", "owned-vm-id"]'`.
+The callback must verify ownership, stop and remove its exact resource, verify
+teardown, and return success only when reuse is safe. It must be idempotent:
+normal completion, cancellation and crash recovery can all invoke it. Never
+include secrets in its persisted arguments. Pin the callback to a trusted
+protected-main installation; this runner does not establish VM ownership itself.
+
+The runner stops the workload before calling cleanup and retains the slot
+through its 60-second cleanup deadline. A failing or interrupted callback leaves
+the recovery record; subsequent admission must successfully repeat cleanup.
+There is no background polling service. A native process-only build may omit
+the callback. Guest simulator operations still use the shared runner inside
+the guest.
+
+Install this version from clean fetched main only while all host runners and
+waiters are idle. Older processes do not understand external-resource cleanup;
+do not mix them with host-mode sessions. The lock and recovery directory stay
+unchanged.
+
 ## Retired build outputs and legacy fixtures (AXON-2779)
 
 Install from a clean freshly fetched main:

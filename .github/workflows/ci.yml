@@ -21,6 +21,9 @@ jobs:
       - name: Validate skills
         run: bash scripts/validate-skills.sh
 
+      - name: Test shared simulator and host runner
+        run: python3 -B -m unittest discover -s scripts/tests -p test_simulator_runner.py
+
       - name: Test progress-check
         run: python3 skills/personal/progress-check/tests/test_progress_check.py
 
