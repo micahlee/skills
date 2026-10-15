@@ -35,6 +35,12 @@ class CleanupTests(unittest.TestCase):
         original=self.git
         with patch.object(m,'git',side_effect=lambda root,*args:' M source.go' if args[0]=='status' else original(root,*args)):
             self.assertIsNone(m.retired_branch(self.root,'axon-training',self.record))
+    def test_process_probe_disables_network_name_resolution(self):
+        with patch.object(m,'run',return_value='n/tmp/active\nn/tmp/active') as command:
+            self.assertEqual(m.process_paths(),{'/tmp/active'})
+            self.assertIn('-nP',command.call_args.args[0])
+        with patch.object(m,'run',return_value=''):
+            with self.assertRaises(RuntimeError):m.process_paths()
     def test_allowlist_and_symlink_guards(self):
         outside=self.root.parent/'outside';outside.mkdir();(outside/'valuable').write_text('keep')
         (self.root/'.build').symlink_to(outside,target_is_directory=True)
