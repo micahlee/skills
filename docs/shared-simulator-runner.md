@@ -16,7 +16,10 @@ non-simulator work may remain parallel.
   device. Shutdown occurs when the script ends; never hold a slot while waiting
   for a human answer. For interactive inspection, use a bounded script/session.
 - Disposable fixtures: `run --name <fixture> --erase -- <script>`; erasure is
-  explicit and applies only to that selected development fixture.
+  explicit and applies only to that selected development fixture. Newly created
+  named fixtures are deleted after verified shutdown, including failed/cancelled
+  runs and crash recovery. Existing fixtures and explicit device IDs are retained.
+  Use `--keep-fixture` to intentionally preserve a new fixture for later work.
 - Phone/Watch checks: `run --paired --device <phone-UDID> --device <watch-UDID> -- <script>`.
   This is one exclusive job, with the explicit paired-device exception.
 - Use `status` for ownership and `recover` for stale managed sessions. Do not
@@ -29,7 +32,7 @@ clean freshly fetched `origin/main`; never install a task-branch runner. Do not
 copy the runner into each worktree or change its shared state path. Existing
 threads must read this rule before their next simulator operation.
 
-The lock is cooperative: manually booted simulators or tools that ignore these instructions are detected as conflicts. It is not a macOS access-control boundary. Do not run a second simulator while a session is active. The caller-facing process has a separate supervisor, which cancels the job on parent death. After supervisor loss or host restart, the next admission recovers its recorded worker and devices before proceeding. Cleanup failure leaves recovery state and blocks subsequent admission. Device definitions are retained; shutdown does not delete them.
+The lock is cooperative: manually booted simulators or tools that ignore these instructions are detected as conflicts. It is not a macOS access-control boundary. Do not run a second simulator while a session is active. The caller-facing process has a separate supervisor, which cancels the job on parent death. After supervisor loss or host restart, the next admission recovers its recorded worker and devices before proceeding. Cleanup failure leaves recovery state and blocks subsequent admission. Existing device definitions are retained; only newly created disposable named fixtures are deleted after shutdown.
 
 New invocations enroll in a FIFO waiting queue before attempting the same host
 lock. A newer job cannot pass an enrolled waiter between polling attempts.
@@ -49,3 +52,37 @@ seconds by default). Ordinary simctl commands retain their 120-second limit;
 `--timeout` still bounds the admitted workload. A boot timeout or cancellation
 prevents the workload from starting and tears down only the registered owned
 devices before releasing the same host slot.
+
+## Retired build outputs and legacy fixtures (AXON-2779)
+
+Install from a clean freshly fetched main:
+
+```sh
+python3 scripts/install_simulator_runner.py --install-cleanup-schedule
+```
+
+`axon-dev-cleanup` previews by default; `--apply` removes only allowlisted,
+ignored generated directories in clean linked worktrees whose exact HEAD has a
+merged PR and whose branch has no open PR. Main/detached worktrees, active
+process directories or open files, tracked/unignored paths, symlinks and outputs changed within
+24 hours are preserved. Source, `.axon-dev/qualification-results`, production
+controller artifacts, Go build/module caches, generic simulator devices and
+unknown fixtures are outside this policy. Shared program issues may stay open
+after a specific task branch merges; branch retirement uses exact PR evidence.
+
+For legacy fixtures, `Axon CI Qualification <hash>` must map to that retired
+worktree (SHA-256 of its resolved path, first 12 digits); `AXON-<issue>` fixtures
+require the owning Hub issue closed/completed. Last use must be known and older
+than 24 hours. Deletion rechecks retirement and uses
+`axon-simulator-run delete-retired --device <UDID>` under the unchanged host-wide
+slot; active devices or queued simulator jobs defer maintenance. This operator
+command requires positively verified retirement; it does not infer it itself.
+
+The opt-in LaunchAgent runs at 03:30 local time, at background CPU/I/O priority,
+with no RunAtLoad or persistent worker. It removes at most 30 items per pass,
+never runs concurrent cleanup passes, and replaces one bounded last-run report
+at `~/Library/Caches/axon-dev-cleanup/last-run.json`. No GitHub credentials are
+installed; the existing `gh` login must be available or cleanup fails closed.
+Disable with `launchctl bootout gui/$(id -u)/com.micahlee.axon-dev-cleanup`.
+Preview again with `axon-dev-cleanup`; rerun with `--apply` as needed. API
+failures preserve candidates; the tool does not retry tightly.

@@ -164,7 +164,30 @@ class Runner:
         remaining = [d for d in self.state["devices"] if d in inventory and inventory[d]["state"] != "Shutdown"]
         if errors or remaining:
             raise RunnerError("Cleanup incomplete; next admission must recover: " + "; ".join(errors + remaining))
+        # Only a newly created, explicitly disposable named fixture is owned
+        # for deletion. Keep the recovery record until deletion is verified.
+        for device in self.state.get("deleteDevices", []):
+            if device in inventory:
+                self.tool("delete", device)
+        if any(d in self.inventory() for d in self.state.get("deleteDevices", [])):
+            raise RunnerError("Disposable simulator deletion incomplete; recovery required")
         (self.root / "session.json").unlink(missing_ok=True)
+
+    def delete_retired(self, devices):
+        if not devices or len(devices) != len(set(devices)):
+            raise RunnerError("Select exact, distinct retired device IDs")
+        # Do not compete with an active or enrolled simulator journey.
+        with self.queue_guard(time.monotonic() + 5):
+            if self.queue_entries():
+                raise RunnerError("Simulator jobs are queued; defer maintenance")
+            inventory = self.inventory()
+            if any(d["state"] != "Shutdown" for d in inventory.values()):
+                raise RunnerError("Simulators are active; defer maintenance")
+            for device in devices:
+                if device in inventory:
+                    self.tool("delete", device)
+            if any(d in self.inventory() for d in devices):
+                raise RunnerError("Retired simulator deletion incomplete")
 
     @contextmanager
     def queue_guard(self, deadline, watch_parent=True):
@@ -256,13 +279,16 @@ class Runner:
             self.cleanup()
             self.state = {"devices": [], "worker": None}
 
-    def select(self, devices, name, runtime, device_type):
+    def select(self, devices, name, runtime, device_type, dispose_new=False):
         inventory = self.inventory()
         if name:
             matches = [d for d in inventory.values() if d["name"] == name and d["runtime"] == runtime and d.get("isAvailable")]
             if len(matches) > 1:
                 raise RunnerError("Ambiguous managed simulator name")
             devices = [matches[0]["udid"]] if matches else [self.tool("create", name, device_type, runtime)]
+            if not matches and dispose_new:
+                self.state["deleteDevices"] = list(devices)
+                self.save()
             inventory = self.inventory()
         if not devices or len(set(devices)) != len(devices):
             raise RunnerError("Select exact, distinct simulator IDs")
@@ -387,13 +413,14 @@ def xcode_job(arguments, inventory):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["run", "xcodebuild", "status", "recover"])
+    parser.add_argument("mode", choices=["run", "xcodebuild", "status", "recover", "delete-retired"])
     parser.add_argument("--device", action="append", default=[])
     parser.add_argument("--paired", action="store_true", help="Exclusive iPhone/Watch pair exception")
     parser.add_argument("--name")
     parser.add_argument("--runtime", default="com.apple.CoreSimulator.SimRuntime.iOS-26-5")
     parser.add_argument("--device-type", default="com.apple.CoreSimulator.SimDeviceType.iPhone-17")
     parser.add_argument("--erase", action="store_true", help="Erase only the selected disposable fixture")
+    parser.add_argument("--keep-fixture", action="store_true", help="Retain a newly created named fixture after --erase")
     parser.add_argument("--setenv", action="append", default=[])
     parser.add_argument("--wait", type=float, default=3600)
     parser.add_argument("--timeout", type=float, default=1800)
@@ -419,6 +446,11 @@ def main(argv=None):
         runner.acquire(args.wait)
         if args.mode == "recover":
             return 0
+        if args.mode == "delete-retired":
+            if args.name or command or args.erase:
+                raise RunnerError("delete-retired accepts only verified retired device IDs")
+            runner.delete_retired(args.device)
+            return 0
         if args.mode == "xcodebuild":
             command, devices = xcode_job(command, runner.inventory())
         else:
@@ -429,7 +461,8 @@ def main(argv=None):
             parser.error("run requires a command after --")
         if len(devices) > (2 if args.paired else 1) or (args.paired and len(devices) != 2):
             raise RunnerError("One device per session; use --paired for an exact phone/Watch pair")
-        devices = runner.select(devices, args.name, args.runtime, args.device_type)
+        devices = runner.select(devices, args.name, args.runtime, args.device_type,
+                                dispose_new=bool(args.name and args.erase and not args.keep_fixture))
         if args.paired:
             pairs = json.loads(runner.tool("list", "pairs", "--json"))["pairs"].values()
             if not any(p.get("state", "").startswith("(active,") and {p["phone"]["udid"], p["watch"]["udid"]} == set(devices) for p in pairs):

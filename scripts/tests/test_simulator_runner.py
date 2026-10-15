@@ -13,6 +13,11 @@ FAKE = '''import json,sys
 from pathlib import Path
 p=Path(sys.argv[1]); args=sys.argv[2:]; data=json.loads(p.read_text())
 if args[:2]==['list','devices']: print(json.dumps({'devices':{'com.apple.CoreSimulator.SimRuntime.iOS-26-5':list(data.values())}}))
+elif args[0]=='create':
+    import uuid
+    device=str(uuid.uuid4()); data[device]={'udid':device,'name':args[1],'state':'Shutdown','isAvailable':True};p.write_text(json.dumps(data));print(device)
+elif args[0]=='delete' and Path(str(p)+'.delete-fail').exists(): raise SystemExit(1)
+elif args[0]=='delete': data.pop(args[1],None);p.write_text(json.dumps(data))
 elif args[0]=='boot': data[args[1]]['state']='Booted'; p.write_text(json.dumps(data))
 elif args[0]=='shutdown' and Path(str(p)+'.fail').exists(): raise SystemExit(1)
 elif args[0]=='shutdown': data[args[1]]['state']='Shutdown'; p.write_text(json.dumps(data))
@@ -67,6 +72,44 @@ class SimulatorRunnerTests(unittest.TestCase):
         return 'import os,time; from pathlib import Path; Path('+repr(str(path))+').write_text(str(os.getpid())); time.sleep(60)'
     def test_success_and_failure_shutdown(self):
         for code in [0,7]: self.assert_clean(self.launch('import sys; sys.exit('+str(code)+')'),code)
+    def test_new_disposable_fixture_removed_after_success_and_failure(self):
+        for code in (0, 7):
+            result=subprocess.run([sys.executable,str(self.launcher),'run','--name','disposable','--erase','--',sys.executable,'-c',f'raise SystemExit({code})'],capture_output=True,text=True,timeout=15)
+            self.assertEqual(result.returncode,code,result.stderr)
+            self.assertEqual(set(json.loads(self.inventory.read_text())),{'phone','other'})
+    def test_existing_named_and_explicit_devices_are_preserved(self):
+        result=subprocess.run([sys.executable,str(self.launcher),'run','--name','phone','--erase','--',sys.executable,'-c','pass'],capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(set(json.loads(self.inventory.read_text())),{'phone','other'})
+        self.assert_clean(self.launch('pass','--erase'),0)
+    def test_keep_fixture_opt_out(self):
+        result=subprocess.run([sys.executable,str(self.launcher),'run','--name','persistent','--erase','--keep-fixture','--',sys.executable,'-c','pass'],capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(len(json.loads(self.inventory.read_text())),3)
+    def test_cancelled_new_disposable_fixture_removed(self):
+        marker=self.root/'disposable-child'
+        p=subprocess.Popen([sys.executable,str(self.launcher),'run','--name','disposable','--erase','--',sys.executable,'-c',self.sleeper(marker)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        self.processes.append(p);self.wait_for(marker.exists)
+        p.terminate();self.assert_clean(p,143)
+        self.assertEqual(set(json.loads(self.inventory.read_text())),{'phone','other'})
+    def test_delete_retired_refuses_any_active_device(self):
+        data=json.loads(self.inventory.read_text());data['other']['state']='Booted';self.inventory.write_text(json.dumps(data))
+        result=subprocess.run([sys.executable,str(self.launcher),'delete-retired','--device','phone'],capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,1);self.assertIn('active',result.stderr)
+        self.assertIn('phone',json.loads(self.inventory.read_text()))
+    def test_delete_retired_is_exact_and_idempotent(self):
+        for _ in range(2):
+            result=subprocess.run([sys.executable,str(self.launcher),'delete-retired','--device','phone'],capture_output=True,text=True,timeout=10)
+            self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(set(json.loads(self.inventory.read_text())),{'other'})
+    def test_disposable_delete_failure_recovers(self):
+        marker=Path(str(self.inventory)+'.delete-fail');marker.touch()
+        result=subprocess.run([sys.executable,str(self.launcher),'run','--name','disposable','--erase','--',sys.executable,'-c','pass'],capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,1,result.stderr)
+        self.assertTrue((self.root/'state/session.json').exists())
+        marker.unlink()
+        self.assert_clean(self.launch('pass'),0)
+        self.assertEqual(set(json.loads(self.inventory.read_text())),{'phone','other'})
     def test_sigterm_and_sigint(self):
         for sig in [signal.SIGTERM,signal.SIGINT]:
             child=self.root/('child-'+str(sig)); p=self.launch(self.sleeper(child)); self.wait_for(child.exists)
