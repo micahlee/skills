@@ -54,6 +54,72 @@ class SimulatorRunnerTests(unittest.TestCase):
     def launch(self, code, *options):
         p=subprocess.Popen([sys.executable,str(self.launcher),'run','--device','phone',*options,'--',sys.executable,'-c',code],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         self.processes.append(p); return p
+    def launch_host(self, code, *options):
+        p=subprocess.Popen([sys.executable,str(self.launcher),'host',*options,'--',sys.executable,'-c',code],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        self.processes.append(p); return p
+    def cleanup_argv(self, code):
+        return json.dumps([sys.executable, '-c', code])
+    def test_host_preserves_devices_and_has_no_simulator_destination(self):
+        initial=self.inventory.read_text()
+        for status in (0,7):
+            code='import os; assert "AXON_SIMULATOR_UDID" not in os.environ; assert os.environ["AXON_SIMULATOR_DEVICES"]==""; raise SystemExit('+str(status)+')'
+            self.assert_clean(self.launch_host(code),status)
+            self.assertEqual(self.inventory.read_text(),initial)
+    def test_host_refuses_active_unowned_simulator(self):
+        data=json.loads(self.inventory.read_text());data['other']['state']='Booted';self.inventory.write_text(json.dumps(data))
+        marker=self.root/'should-not-start'
+        self.assert_clean(self.launch_host('from pathlib import Path; Path('+repr(str(marker))+').touch()'),1)
+        self.assertFalse(marker.exists())
+        self.assertEqual(json.loads(self.inventory.read_text())['other']['state'],'Booted')
+    def test_host_and_simulator_share_slot_both_directions(self):
+        for first_launch,second_launch in ((self.launch_host,self.launch),(self.launch,self.launch_host)):
+            start=self.root/'start'; release=self.root/'release'; second=self.root/'second'
+            first=first_launch('import time; from pathlib import Path; Path('+repr(str(start))+').touch(); p=Path('+repr(str(release))+'); \nwhile not p.exists(): time.sleep(.05)')
+            self.wait_for(start.exists)
+            following=second_launch('from pathlib import Path; Path('+repr(str(second))+').touch()')
+            time.sleep(.4); self.assertFalse(second.exists()); release.touch()
+            out,err=first.communicate(timeout=12);self.assertEqual(first.returncode,0,(out,err))
+            self.assert_clean(following,0);self.assertTrue(second.exists())
+            for p in (start,release,second):p.unlink()
+    def test_host_cancellation_cleans_external_resource_after_worker_stops(self):
+        child=self.root/'child'; cleaned=self.root/'cleaned'
+        cleanup='import subprocess; from pathlib import Path; result=subprocess.run(["ps","-p",Path('+repr(str(child))+').read_text(),"-o","stat="],capture_output=True,text=True); assert not result.stdout.strip() or result.stdout.strip().startswith("Z"); Path('+repr(str(cleaned))+').touch()'
+        p=self.launch_host(self.sleeper(child),'--host-cleanup',self.cleanup_argv(cleanup))
+        self.wait_for(child.exists);p.terminate();self.assert_clean(p,143)
+        self.assertTrue(cleaned.exists());self.assert_dead(child.read_text())
+    def test_host_cleanup_failure_blocks_admission_until_recovered(self):
+        fail=self.root/'cleanup-fails'; fail.touch(); marker=self.root/'work'
+        cleanup='from pathlib import Path; raise SystemExit(int(Path('+repr(str(fail))+').exists()))'
+        p=self.launch_host('pass','--host-cleanup',self.cleanup_argv(cleanup))
+        out,err=p.communicate(timeout=12);self.assertEqual(p.returncode,1,(out,err))
+        self.assertTrue((self.root/'state/session.json').exists())
+        code='from pathlib import Path; Path('+repr(str(marker))+').touch()'
+        p=self.launch_host(code);out,err=p.communicate(timeout=12);self.assertEqual(p.returncode,1,(out,err));self.assertFalse(marker.exists())
+        fail.unlink();self.assert_clean(self.launch_host(code),0);self.assertTrue(marker.exists())
+    def test_host_slot_remains_held_during_cleanup(self):
+        start=self.root/'cleanup-start'; release=self.root/'release'; second=self.root/'following'
+        cleanup='import time; from pathlib import Path; Path('+repr(str(start))+').touch(); p=Path('+repr(str(release))+'); \nwhile not p.exists(): time.sleep(.05)'
+        first=self.launch_host('pass','--host-cleanup',self.cleanup_argv(cleanup));self.wait_for(start.exists)
+        following=self.launch_host('from pathlib import Path; Path('+repr(str(second))+').touch()')
+        time.sleep(.4);self.assertFalse(second.exists());release.touch()
+        out,err=first.communicate(timeout=12);self.assertEqual(first.returncode,0,(out,err))
+        self.assert_clean(following,0);self.assertTrue(second.exists())
+    def test_host_supervisor_loss_recovers_resource_before_next_job(self):
+        child=self.root/'child'; cleaned=self.root/'cleaned'
+        cleanup='from pathlib import Path; Path('+repr(str(cleaned))+').touch()'
+        first=self.launch_host(self.sleeper(child),'--host-cleanup',self.cleanup_argv(cleanup));self.wait_for(child.exists)
+        state=json.loads((self.root/'state/session.json').read_text())
+        import os
+        os.kill(state['supervisorPID'],signal.SIGKILL)
+        first.wait(timeout=12)  # The orphan still holds stdout until recovery stops it.
+        self.assert_clean(self.launch_host('from pathlib import Path; assert Path('+repr(str(cleaned))+').exists()'),0)
+        first.communicate(timeout=12)
+        self.assert_dead(child.read_text())
+    def test_host_rejects_invalid_cleanup_and_simulator_options(self):
+        for cleanup in ('invalid','{}','[]','["relative"]',json.dumps([sys.executable,'x'*4096])):
+            self.assert_clean(self.launch_host('raise Exception("must not run")','--host-cleanup',cleanup),1)
+        self.assert_clean(self.launch_host('raise Exception("must not run")','--device','phone'),1)
+
     def wait_for(self, predicate):
         deadline=time.monotonic()+8
         while time.monotonic()<deadline:
