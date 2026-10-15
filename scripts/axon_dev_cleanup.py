@@ -53,7 +53,7 @@ def worktrees(root):
 def process_paths():
     # lsof failure must block deletion, not look like an idle host. Do not log
     # process arguments (which may contain credentials).
-    text = run(['lsof', '-a', '-u', str(os.getuid()), '-Fn'], timeout=30)
+    text = run(['lsof', '-nP', '-a', '-u', str(os.getuid()), '-Fn'], timeout=30)
     # lsof supplies kernel paths. Do not stat/resolve every open file (including
     # network volumes); deduplicate lexically to keep maintenance inexpensive.
     paths = {row[1:] for row in text.splitlines() if row.startswith('n/')}
