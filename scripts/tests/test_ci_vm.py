@@ -66,6 +66,16 @@ class VMExecutorTests(unittest.TestCase):
             with patch.object(vm.sys,'platform','darwin'),patch.object(vm.subprocess,'check_output',return_value=power),patch.object(vm,'verify_tart') as verify:
                 with self.assertRaises(vm.Failure):vm.eligible(self.config)
                 verify.assert_not_called()
+    def test_guest_toolchain_rejects_other_sdk_before_alias_creation(self):
+        selected=subprocess.CompletedProcess([],0,'/Applications/Xcode_26.app/Contents/Developer\n','')
+        with patch.object(vm,'call',return_value=selected) as call:
+            with self.assertRaises(vm.Failure):vm.prepare_toolchain(self.config,'owned')
+            self.assertEqual(len(call.call_args_list),1)
+    def test_guest_toolchain_failure_prevents_job_execution(self):
+        selected=subprocess.CompletedProcess([],0,'/Applications/Xcode_27.app/Contents/Developer\n','')
+        with patch.object(vm,'call',side_effect=[selected,vm.Failure('existing alias conflicts')]):
+            with self.assertRaises(vm.Failure):vm.prepare_toolchain(self.config,'owned')
+
     def test_no_operator_environment_is_forwarded(self):
         with patch.dict(vm.os.environ,{'GH_TOKEN':'private','SSH_AUTH_SOCK':'private','HTTPS_PROXY':'private'}):
             env=vm.environment(self.config)

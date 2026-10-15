@@ -162,3 +162,10 @@ for first JIT-runner acceptance. Only a write-authorized dispatch starts it; it
 allocates no GitHub-hosted runner and has no schedule or pull-request trigger.
 It checks guest CPU/memory and runs the lightweight executor-policy tests.
 It is a bootstrap probe, not repository qualification or a production router.
+
+The pinned guest selects `/Applications/Xcode_27.app/Contents/Developer`.
+Before untrusted work starts, the executor verifies that exact selection and
+provides `/Applications/Xcode.app` as an alias to the same installation. A
+conflicting existing path or another selected SDK fails admission; nothing is
+replaced or reselected. A Git/Xcode lookup through the canonical path must pass.
+This is guest-only setup; physical host Xcode and sandbox permissions stay intact.

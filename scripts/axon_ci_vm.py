@@ -131,6 +131,23 @@ def payload(stream):
         raise Failure('Expected bounded absolute guest argv and stdin')
     return value
 
+def prepare_toolchain(config, name):
+    selected = call(config, 'exec', name, '/usr/bin/xcode-select', '-p').stdout.strip()
+    if selected != '/Applications/Xcode_27.app/Contents/Developer':
+        raise Failure('Qualified Xcode 27 selection required')
+    # The pinned image has a versioned application name. Existing isolated
+    # tool environments use Apple's canonical Xcode.app path. Never replace
+    # another installation or silently select a different SDK.
+    script = """set -eu
+if test -e /Applications/Xcode.app || test -L /Applications/Xcode.app; then
+    test "$(readlink /Applications/Xcode.app)" = /Applications/Xcode_27.app
+else
+    /usr/bin/sudo /bin/ln -s /Applications/Xcode_27.app /Applications/Xcode.app
+fi
+/usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/git --version >/dev/null
+"""
+    call(config, 'exec', name, '/bin/sh', '-c', script)
+
 def worker(config, job):
     # The unchanged shared runner owns admission and its cleanup callback.
     session = json.loads((Path.home() / 'Library/Caches/axon-simulator-runner/session.json').read_text())
@@ -160,6 +177,7 @@ def worker(config, job):
         time.sleep(1)
     call(config, 'exec', name, '/usr/bin/sudo', '/usr/sbin/networksetup',
          '-setdnsservers', 'Ethernet', '1.1.1.1', '8.8.8.8')
+    prepare_toolchain(config, name)
     process = subprocess.run([config['tart'], 'exec', '-i', name, *request['argv']],
                              env=environment(config), input=request['stdin'], text=True)
     return process.returncode
