@@ -41,10 +41,12 @@ def git(root, *args):
     return run(['git', '-C', root, *args])
 
 
-def worktrees(root):
+def worktrees(root, projects_only=False):
     result = []
     for block in git(root, 'worktree', 'list', '--porcelain').split('\n\n'):
         data = dict(line.split(' ', 1) for line in block.splitlines() if ' ' in line)
+        if projects_only and 'worktree' in data and not str(data['worktree']).startswith(str(HOME / 'projects') + '/'):
+            continue
         if 'worktree' in data and Path(data['worktree']).exists():
             result.append(data)
     return result
@@ -114,7 +116,7 @@ def retired_branch(root, repo, record):
     return None
 
 
-def discover(age_hours):
+def discover(age_hours, projects_only=False):
     paths = process_paths()
     cutoff = time.time() - age_hours * 3600
     retired, preserved = {}, []
@@ -123,7 +125,7 @@ def discover(age_hours):
         source = HOME / 'projects' / repo
         if not source.exists():
             continue
-        for record in worktrees(source):
+        for record in worktrees(source, projects_only):
             root = Path(record['worktree']).resolve()
             if busy(root, paths):
                 preserved.append({'path': str(root), 'reason': 'active process cwd or open file in worktree'})
@@ -233,6 +235,7 @@ def main():
     parser.add_argument('--max-items', type=int, default=30)
     parser.add_argument('--report', type=Path)
     parser.add_argument('--quiet', action='store_true')
+    parser.add_argument('--projects-only', action='store_true', help='Exclude Documents and other worktrees from unattended cleanup')
     args = parser.parse_args()
     if not __import__('math').isfinite(args.minimum_age_hours) or args.minimum_age_hours < 1 or not 1 <= args.max_items <= 100:
         parser.error('minimum age must be >= 1 hour; max items must be 1..100')
@@ -249,7 +252,7 @@ def main():
     report = {'schemaVersion': 1, 'apply': args.apply, 'beforeFreeBytes': shutil.disk_usage(HOME).free,
               'items': [], 'preserved': []}
     try:
-        candidates, report['preserved'] = discover(args.minimum_age_hours)
+        candidates, report['preserved'] = discover(args.minimum_age_hours, args.projects_only)
         report['candidateCount'] = len(candidates)
         for item in candidates[:args.max_items]:
             entry = dict(item, result='preview')

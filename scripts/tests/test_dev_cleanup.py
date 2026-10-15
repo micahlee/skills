@@ -35,6 +35,12 @@ class CleanupTests(unittest.TestCase):
         original=self.git
         with patch.object(m,'git',side_effect=lambda root,*args:' M source.go' if args[0]=='status' else original(root,*args)):
             self.assertIsNone(m.retired_branch(self.root,'axon-training',self.record))
+    def test_background_scope_excludes_documents_before_filesystem_access(self):
+        records='worktree '+str(m.HOME/'Documents/private')+'\nHEAD abc\n\nworktree '+str(m.HOME/'projects/allowed')+'\nHEAD def'
+        with patch.object(m,'git',return_value=records),patch.object(Path,'exists',return_value=True) as exists:
+            found=m.worktrees(self.root,projects_only=True)
+            self.assertEqual([r['HEAD'] for r in found],['def'])
+            self.assertEqual(exists.call_count,1)
     def test_process_probe_disables_network_name_resolution(self):
         with patch.object(m,'run',return_value='n/tmp/active\nn/tmp/active') as command:
             self.assertEqual(m.process_paths(),{'/tmp/active'})

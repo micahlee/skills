@@ -78,8 +78,12 @@ than 24 hours. Deletion rechecks retirement and uses
 slot; active devices or queued simulator jobs defer maintenance. This operator
 command requires positively verified retirement; it does not infer it itself.
 
-The opt-in LaunchAgent runs at 03:30 local time, at background CPU/I/O priority,
-with no RunAtLoad or persistent worker. It removes at most 30 items per pass,
+The opt-in LaunchAgent runs with `--projects-only` at 03:30 local time, at background CPU/I/O priority,
+with no RunAtLoad or persistent worker. Unattended worktree cleanup is limited
+to `~/projects`; Documents and other locations require a foreground invocation
+because macOS can deny background access. No privacy permissions are changed.
+Simulator retirement still requires the same explicit ownership evidence.
+It removes at most 30 items per pass,
 never runs concurrent cleanup passes, and replaces one bounded last-run report
 at `~/Library/Caches/axon-dev-cleanup/last-run.json`. No GitHub credentials are
 installed; the existing `gh` login must be available or cleanup fails closed.
