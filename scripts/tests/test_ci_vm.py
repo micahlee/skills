@@ -30,6 +30,70 @@ class VMExecutorTests(unittest.TestCase):
             path.write_text(json.dumps(value))
             with self.assertRaises(vm.Failure):vm.frozen_config(path)
         path.write_text(json.dumps(self.config));self.assertEqual(vm.frozen_config(path),self.config)
+    def test_config_rejects_unpinned_guest_profile_or_image(self):
+        path=self.root/'config'
+        for profile in ('custom', '../linux', {}, None):
+            path.write_text(json.dumps(dict(self.config,profile=profile)))
+            with self.assertRaises(vm.Failure):vm.frozen_config(path)
+        path.write_text(json.dumps(dict(self.config,profile='linux',image='unreviewed')))
+        with self.assertRaises(vm.Failure):vm.frozen_config(path)
+        path.write_text(json.dumps(dict(self.config,profile='linux')))
+        self.assertEqual(vm.guest_image(vm.frozen_config(path)),vm.LINUX_IMAGE)
+
+    def test_linux_admission_preserves_disk_reserve_and_exact_base(self):
+        config=dict(self.config,profile='linux')
+        for gib,image,admitted in ((40,vm.LINUX_IMAGE,False),(50,vm.LINUX_IMAGE,True),(50,vm.IMAGE,False)):
+            def output(argv,**kwargs):
+                return "Now drawing from 'AC Power'" if 'pmset' in argv[0] else str(24*1024**3)
+            rows=[{'Name':image,'Source':'OCI','Running':False}]
+            with patch.object(vm.sys,'platform','darwin'),patch.object(vm.subprocess,'check_output',side_effect=output),patch.object(vm.shutil,'disk_usage',return_value=type('Usage',(),{'free':gib*1024**3})()),patch.object(vm,'verify_tart') as verify,patch.object(vm,'verify_helper'),patch.object(vm,'inventory',return_value=rows):
+                if admitted:vm.eligible(config)
+                else:
+                    with self.assertRaises(vm.Failure):vm.eligible(config)
+                    if gib==40:verify.assert_not_called()
+
+    def test_linux_toolchain_never_mutates_an_xcode_alias(self):
+        for system,valid in (('Linux',True),('Darwin',False)):
+            with patch.object(vm,'call',return_value=subprocess.CompletedProcess([],0,system+'\n','')) as call:
+                if valid:vm.prepare_toolchain(dict(self.config,profile='linux'),'owned')
+                else:
+                    with self.assertRaises(vm.Failure):vm.prepare_toolchain(dict(self.config,profile='linux'),'owned')
+                self.assertEqual(call.call_args.args[1:],('exec','owned','/usr/bin/uname','-s'))
+                self.assertEqual(call.call_count,1)
+
+    def test_linux_dns_requires_one_explicit_interface_before_changes(self):
+        config=dict(self.config,profile='linux')
+        for routes in ([],[{'dev':'eth0'},{'dev':'eth1'}],[{'dev':'bad;command'}],{'dev':'eth0'}):
+            with patch.object(vm,'call',return_value=subprocess.CompletedProcess([],0,json.dumps(routes),'')) as call:
+                with self.assertRaises(vm.Failure):vm.prepare_network(config,'owned')
+                self.assertEqual(call.call_count,1)
+        with patch.object(vm,'call',return_value=subprocess.CompletedProcess([],0,'[{"dev":"enp0s1"}]','')) as call:
+            vm.prepare_network(config,'owned')
+            self.assertEqual(call.call_args_list[1].args[1:],('exec','owned','/usr/bin/sudo','/usr/bin/resolvectl','dns','enp0s1','1.1.1.1','8.8.8.8'))
+            self.assertEqual(call.call_args_list[2].args[1:],('exec','owned','/usr/bin/sudo','/usr/bin/resolvectl','domain','enp0s1','~.'))
+
+    def test_linux_worker_keeps_shared_ownership_isolation_and_small_resources(self):
+        home=self.root/'home';session=home/'Library/Caches/axon-simulator-runner/session.json'
+        session.parent.mkdir(parents=True)
+        session.write_text(json.dumps({'mode':'host','worker':{'pid':vm.os.getpid()},'supervisorPID':42}))
+        config=dict(self.config,profile='linux')
+        request={'argv':['/usr/bin/true'],'stdin':'synthetic-job-input'}
+        completed=subprocess.CompletedProcess([],0,'','')
+        with patch.object(vm.Path,'home',return_value=home),patch.dict(vm.os.environ,{'AXON_SIMULATOR_SESSION_PID':'42'}),patch.object(vm,'payload',return_value=request),patch.object(vm,'eligible') as eligible,patch.object(vm,'write_record') as record,patch.object(vm,'call',return_value=completed) as call,patch.object(vm,'prepare_network') as network,patch.object(vm,'prepare_toolchain') as toolchain,patch.object(vm.subprocess,'Popen') as launch,patch.object(vm.subprocess,'run',return_value=completed):
+            self.assertEqual(vm.worker(config,self.job),0)
+        eligible.assert_called_once_with(config)
+        record.assert_called_once_with(self.job,config)
+        name=vm.vm_name(self.job)
+        self.assertEqual(call.call_args_list[0].args[1:],('clone',vm.LINUX_IMAGE,name))
+        self.assertEqual(call.call_args_list[1].args[1:],('set',name,'--cpu','4','--memory','6144'))
+        command=launch.call_args.args[0]
+        for flag in ('--no-graphics','--no-audio','--no-clipboard','--no-usb-accessories','--net-softnet','--net-softnet-block'):self.assertIn(flag,command)
+        self.assertIn(vm.BLOCK,command)
+        self.assertNotIn('--dir',command)
+        self.assertEqual(set(launch.call_args.kwargs['env']),{'HOME','PATH','TART_HOME','TART_NO_AUTO_PRUNE','LANG'})
+        network.assert_called_once_with(config,name)
+        toolchain.assert_called_once_with(config,name)
+
     def test_attempt_identity_prevents_path_traversal(self):
         for value in ('../foreign','',self.job.upper()):
             with self.assertRaises((vm.Failure,ValueError)):vm.record_path(value)

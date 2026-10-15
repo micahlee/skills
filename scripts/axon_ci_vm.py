@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Disposable Apple CI guest executor; no scheduler or paid-job admission."""
+"""Disposable CI guest executor; no scheduler or paid-job admission."""
 from __future__ import annotations
 import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import stat
@@ -21,6 +22,10 @@ IMAGE = 'ghcr.io/cirruslabs/macos-golden-gate-xcode@sha256:324ea5656dee8ab9b0a0d
 # A COW clone may overwrite the entire 140-GB disk, not just guest free space.
 # Keep at least 20 GiB for the host even at that maximum write footprint.
 MIN_STOCK_FREE_GIB = 160
+LINUX_IMAGE = 'ghcr.io/cirruslabs/ubuntu@sha256:94dbb9c4b94db827a208fea301cf33eacdcbfb801155b5702b9e2faa52473a2e'
+# The pinned Linux image has a 20-GB virtual disk. Account for a complete
+# clone rewrite and at least 20 GiB left on the physical host.
+MIN_LINUX_FREE_GIB = 45
 BLOCK = '@host,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,169.254.0.0/16'
 
 class Failure(RuntimeError):
@@ -29,10 +34,21 @@ class Failure(RuntimeError):
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
+def guest_profile(config):
+    profile = config.get('profile', 'macos')
+    if not isinstance(profile, str) or profile not in {'macos', 'linux'}:
+        raise Failure('Only pinned macos or linux guest profiles are allowed')
+    return profile
+
+def guest_image(config):
+    return LINUX_IMAGE if guest_profile(config) == 'linux' else IMAGE
+
 def frozen_config(path):
     value = json.loads(Path(path).read_text())
-    if not isinstance(value, dict) or set(value) != {'tart', 'tartHome'} or any(not isinstance(v, str) or not Path(v).is_absolute() for v in value.values()):
-        raise Failure('Expected absolute tart and tartHome paths only')
+    if (not isinstance(value, dict) or set(value) not in ({'tart', 'tartHome'}, {'tart', 'tartHome', 'profile'})
+            or any(not isinstance(value[k], str) or not Path(value[k]).is_absolute() for k in ('tart', 'tartHome'))):
+        raise Failure('Expected absolute tart and tartHome paths with an optional pinned profile')
+    guest_profile(value)
     return value
 
 def verify_tart(config):
@@ -107,19 +123,20 @@ def cleanup(job):
 
 def eligible(config):
     if sys.platform != 'darwin':
-        raise Failure('Apple guest execution requires macOS')
+        raise Failure('Guest execution requires a macOS physical host')
     if (ROOT / 'paused').exists():
         raise Failure('Local CI admission paused')
     power = subprocess.check_output(['/usr/bin/pmset', '-g', 'batt'], text=True)
     if "'AC Power'" not in power:
         raise Failure('Local CI requires AC power')
     ram = int(subprocess.check_output(['/usr/sbin/sysctl', '-n', 'hw.memsize'], text=True))
-    if ram < 24 * 1024**3 or shutil.disk_usage(config['tartHome']).free < MIN_STOCK_FREE_GIB * 1024**3:
-        raise Failure('Stock image requires 24 GiB RAM and 160 GiB free disk')
+    minimum_free = MIN_LINUX_FREE_GIB if guest_profile(config) == 'linux' else MIN_STOCK_FREE_GIB
+    if ram < 24 * 1024**3 or shutil.disk_usage(config['tartHome']).free < minimum_free * 1024**3:
+        raise Failure('Pinned guest requires 24 GiB RAM and ' + str(minimum_free) + ' GiB free disk')
     verify_tart(config)
     verify_helper()
     rows = inventory(config)
-    if len(rows) != 1 or rows[0]['Name'] != IMAGE or rows[0]['Source'] != 'OCI' or rows[0]['Running']:
+    if len(rows) != 1 or rows[0]['Name'] != guest_image(config) or rows[0]['Source'] != 'OCI' or rows[0]['Running']:
         raise Failure('Expected only the qualified stopped base image; preserve other VMs')
 
 def payload(stream):
@@ -135,6 +152,10 @@ def payload(stream):
     return value
 
 def prepare_toolchain(config, name):
+    if guest_profile(config) == 'linux':
+        if call(config, 'exec', name, '/usr/bin/uname', '-s').stdout.strip() != 'Linux':
+            raise Failure('Pinned Linux guest required')
+        return
     selected = call(config, 'exec', name, '/usr/bin/xcode-select', '-p').stdout.strip()
     if selected != '/Applications/Xcode_27.app/Contents/Developer':
         raise Failure('Qualified Xcode 27 selection required')
@@ -151,6 +172,19 @@ fi
 """
     call(config, 'exec', name, '/bin/sh', '-c', script)
 
+def prepare_network(config, name):
+    if guest_profile(config) == 'linux':
+        routes = json.loads(call(config, 'exec', name, '/usr/sbin/ip', '-j', 'route', 'show', 'default').stdout)
+        if (not isinstance(routes, list) or len(routes) != 1 or not isinstance(routes[0], dict)
+                or not isinstance(routes[0].get('dev'), str) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,32}', routes[0]['dev'])):
+            raise Failure('Expected one explicit Linux default-route interface')
+        interface = routes[0]['dev']
+        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/resolvectl', 'dns', interface, '1.1.1.1', '8.8.8.8')
+        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/resolvectl', 'domain', interface, '~.')
+    else:
+        call(config, 'exec', name, '/usr/bin/sudo', '/usr/sbin/networksetup',
+             '-setdnsservers', 'Ethernet', '1.1.1.1', '8.8.8.8')
+
 def worker(config, job):
     # The unchanged shared runner owns admission and its cleanup callback.
     session = json.loads((Path.home() / 'Library/Caches/axon-simulator-runner/session.json').read_text())
@@ -161,8 +195,9 @@ def worker(config, job):
     eligible(config)
     write_record(job, config)
     name = vm_name(job)
-    call(config, 'clone', IMAGE, name, timeout=60)
-    call(config, 'set', name, '--cpu', '8', '--memory', '14336')
+    call(config, 'clone', guest_image(config), name, timeout=60)
+    linux = guest_profile(config) == 'linux'
+    call(config, 'set', name, '--cpu', '4' if linux else '8', '--memory', '6144' if linux else '14336')
     # No host shares, UI, clipboard, accessory passthrough or private networking.
     subprocess.Popen([config['tart'], 'run', name, '--no-graphics', '--no-audio',
                       '--no-clipboard', '--no-usb-accessories', '--net-softnet',
@@ -178,8 +213,7 @@ def worker(config, job):
         if time.monotonic() >= deadline:
             raise Failure('Guest startup deadline exceeded')
         time.sleep(1)
-    call(config, 'exec', name, '/usr/bin/sudo', '/usr/sbin/networksetup',
-         '-setdnsservers', 'Ethernet', '1.1.1.1', '8.8.8.8')
+    prepare_network(config, name)
     prepare_toolchain(config, name)
     process = subprocess.run([config['tart'], 'exec', '-i', name, *request['argv']],
                              env=environment(config), input=request['stdin'], text=True)
