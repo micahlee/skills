@@ -1,0 +1,32 @@
+name: Disposable CI guest smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner-label:
+        description: Unique label for one registered disposable guest
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-guest-smoke-${{ inputs.runner-label }}
+  cancel-in-progress: true
+
+jobs:
+  guest:
+    runs-on: [self-hosted, macOS, ARM64, '${{ inputs.runner-label }}']
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Verify qualified guest resources
+        run: |
+          test "$(sysctl -n hw.ncpu)" = 8
+          test "$(sysctl -n hw.memsize)" = 15032385536
+          sw_vers
+      - name: Exercise executor policy without launching another guest
+        run: python3 -B -m unittest discover -s scripts/tests -p test_ci_vm.py
