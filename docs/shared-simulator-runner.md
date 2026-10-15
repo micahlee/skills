@@ -156,3 +156,9 @@ installed; the existing `gh` login must be available or cleanup fails closed.
 Disable with `launchctl bootout gui/$(id -u)/com.micahlee.axon-dev-cleanup`.
 Preview again with `axon-dev-cleanup`; rerun with `--apply` as needed. API
 failures preserve candidates; the tool does not retry tightly.
+
+The manual `Disposable CI guest smoke` workflow accepts a unique runner label
+for first JIT-runner acceptance. Only a write-authorized dispatch starts it; it
+allocates no GitHub-hosted runner and has no schedule or pull-request trigger.
+It checks guest CPU/memory and runs the lightweight executor-policy tests.
+It is a bootstrap probe, not repository qualification or a production router.
