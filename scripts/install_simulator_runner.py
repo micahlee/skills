@@ -46,7 +46,7 @@ if schedule:
     agent.parent.mkdir(parents=True, exist_ok=True)
     config = {
         'Label': label,
-        'ProgramArguments': [sys.executable, '-B', str(cleanup_target), '--apply', '--quiet', '--report', str(state / 'last-run.json')],
+        'ProgramArguments': [sys.executable, '-B', str(cleanup_target), '--apply', '--projects-only', '--quiet', '--report', str(state / 'last-run.json')],
         'EnvironmentVariables': {'PATH': str(target.parent) + ':/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'},
         'StartCalendarInterval': {'Hour': 3, 'Minute': 30},
         'ProcessType': 'Background', 'LowPriorityIO': True, 'Nice': 10,
