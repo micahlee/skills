@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
+from contextlib import redirect_stdout
 import uuid
 
 spec = importlib.util.spec_from_file_location('ci_vm',Path(__file__).resolve().parents[1]/'axon_ci_vm.py')
@@ -93,6 +94,24 @@ class VMExecutorTests(unittest.TestCase):
         self.assertEqual(set(launch.call_args.kwargs['env']),{'HOME','PATH','TART_HOME','TART_NO_AUTO_PRUNE','LANG'})
         network.assert_called_once_with(config,name)
         toolchain.assert_called_once_with(config,name)
+
+    def test_readonly_check_admits_no_guest_and_creates_no_job_record(self):
+        path=self.root/'config';config=dict(self.config,profile='linux');path.write_text(json.dumps(config))
+        output=io.StringIO()
+        with patch.object(vm.sys,'argv',['axon-ci-vm','check','--config',str(path)]),patch.object(vm,'eligible') as eligible,patch.object(vm,'worker') as worker,patch.object(vm,'write_record') as write,patch.object(vm.subprocess,'run') as run,redirect_stdout(output):
+            self.assertEqual(vm.main(),0)
+        eligible.assert_called_once_with(config);worker.assert_not_called();write.assert_not_called();run.assert_not_called()
+        self.assertEqual(json.loads(output.getvalue()),{'eligible':True,'profile':'linux'})
+        self.assertFalse(vm.ROOT.exists())
+
+    def test_readonly_check_preserves_ineligibility_and_refuses_job_identity(self):
+        path=self.root/'config';path.write_text(json.dumps(self.config))
+        with patch.object(vm.sys,'argv',['axon-ci-vm','check','--config',str(path)]),patch.object(vm,'eligible',side_effect=vm.Failure('paused')),patch.object(vm,'write_record') as write:
+            with self.assertRaisesRegex(vm.Failure,'paused'):vm.main()
+            write.assert_not_called()
+        with patch.object(vm.sys,'argv',['axon-ci-vm','check','--config',str(path),'--job',self.job]),patch.object(vm,'eligible') as eligible:
+            with self.assertRaises(vm.Failure):vm.main()
+            eligible.assert_not_called()
 
     def test_attempt_identity_prevents_path_traversal(self):
         for value in ('../foreign','',self.job.upper()):

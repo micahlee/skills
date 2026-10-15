@@ -22,3 +22,8 @@ Before enabling a host, measure actual base/clone allocation and boot/teardown,
 verify public network access and private-network denial, run representative
 portable qualification with the expected tools, and verify cleanup. Keep Apple
 tests on the qualified Mac profile. No VM runs or consumes memory when idle.
+
+`axon-ci-vm check --config CONFIG` performs read-only image, hardware, power,
+pause and helper eligibility checks without creating a job, runner or VM.
+It accepts no job identity. The scheduler must still observe the shared host
+slot; `run` rechecks eligibility after acquiring that slot to close races.
