@@ -87,6 +87,23 @@ class VMExecutorTests(unittest.TestCase):
             self.assertIn('Domains=~.',writes[0].kwargs['input'])
             self.assertTrue(any('reconfigure' in c.args and c.args[-1]=='enp0s1' for c in call.call_args_list))
 
+    def test_fresh_boot_dns_is_seeded_before_readback(self):
+        state={'dns':'192.168.64.129','domain':''}
+        def response(config,*args,**kwargs):
+            output=''
+            if 'route' in args:output='[{"dev":"enp0s1"}]'
+            elif 'status' in args:output='Network File: /run/systemd/network/10-netplan-enp0s1.network'
+            elif 'dns' in args:
+                if '/usr/bin/sudo' in args:state['dns']=' '.join(args[-2:])
+                else:output='Link 2 (enp0s1): '+state['dns']
+            elif 'domain' in args:
+                if '/usr/bin/sudo' in args:state['domain']=args[-1]
+                else:output='Link 2 (enp0s1): '+state['domain']
+            return subprocess.CompletedProcess([],0,output,'')
+        with patch.object(vm,'call',side_effect=response):
+            vm.prepare_network(dict(self.config,profile='linux'),'owned')
+        self.assertEqual(state,{'dns':'1.1.1.1 8.8.8.8','domain':'~.'})
+
     def test_linux_dns_rejects_unowned_unit_paths_before_writing(self):
         for status in ('Network File: /tmp/untrusted.network','Network File: /run/systemd/network/../../bad.network','Network File: /run/systemd/network/a.network\nNetwork File: /run/systemd/network/b.network','no matching unit'):
             replies=[subprocess.CompletedProcess([],0,'[{"dev":"enp0s1"}]',''),subprocess.CompletedProcess([],0,status,'')]
@@ -95,7 +112,7 @@ class VMExecutorTests(unittest.TestCase):
                 self.assertEqual(call.call_count,2)
 
     def test_linux_dns_readback_refuses_private_dhcp_gateway(self):
-        replies=[subprocess.CompletedProcess([],0,x,'') for x in ['[{"dev":"enp0s1"}]','Network File: /run/systemd/network/10-netplan-enp0s1.network','','','','','Link 2 (enp0s1): 192.168.64.129','Link 2 (enp0s1): ~.']]
+        replies=[subprocess.CompletedProcess([],0,x,'') for x in ['[{"dev":"enp0s1"}]','Network File: /run/systemd/network/10-netplan-enp0s1.network','','','','','','','Link 2 (enp0s1): 192.168.64.129','Link 2 (enp0s1): ~.']]
         with patch.object(vm,'call',side_effect=replies),patch.object(vm.time,'monotonic',side_effect=[0,11]):
             with self.assertRaisesRegex(vm.Failure,'Persistent public Linux DNS'):vm.prepare_network(dict(self.config,profile='linux'),'owned')
 
