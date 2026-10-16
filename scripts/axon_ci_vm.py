@@ -191,6 +191,10 @@ def prepare_network(config, name):
         call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/tee', directory + '/99-axon-ci-public-dns.conf', input=settings)
         call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/networkctl', 'reload')
         call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/networkctl', 'reconfigure', interface)
+        # A fresh boot can retain its already-acquired DHCP DNS until the next
+        # link reset. Seed the current resolved state as well as future leases.
+        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/resolvectl', 'dns', interface, '1.1.1.1', '8.8.8.8')
+        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/resolvectl', 'domain', interface, '~.')
         deadline = time.monotonic() + 10
         while True:
             dns = call(config, 'exec', name, '/usr/bin/resolvectl', 'dns', interface).stdout.split(':', 1)[-1].split()
