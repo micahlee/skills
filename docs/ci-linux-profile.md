@@ -27,3 +27,12 @@ tests on the qualified Mac profile. No VM runs or consumes memory when idle.
 pause and helper eligibility checks without creating a job, runner or VM.
 It accepts no job identity. The scheduler must still observe the shared host
 slot; `run` rechecks eligibility after acquiring that slot to close races.
+
+Before a Linux workload starts, the executor masks daily apt timers/services
+inside the disposable clone and verifies they are inactive. It refuses a clone
+whose unattended upgrade has already started instead of interrupting dpkg.
+Explicit dependency installation remains available, with needrestart configured
+to list restart requirements rather than restart the active guest agent. This
+prevents background upgrades from killing the Actions process tree mid-test.
+The pinned base and host update settings are unchanged; base security updates
+remain a deliberate new-image qualification.

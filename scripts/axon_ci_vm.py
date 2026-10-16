@@ -151,6 +151,39 @@ def payload(stream):
         raise Failure('Expected bounded absolute guest argv and stdin')
     return value
 
+def prepare_updates(config, name):
+    if guest_profile(config) != 'linux':
+        return
+    # A pinned disposable image must not upgrade itself underneath a job.
+    # Ubuntu's unattended upgrades can restart tart-guest-agent and terminate
+    # its entire Actions process tree, leaving the host exec waiting forever.
+    timers = ('apt-daily.timer', 'apt-daily-upgrade.timer')
+    services = ('apt-daily.service', 'apt-daily-upgrade.service')
+    call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/systemctl',
+         'mask', '--runtime', *timers, *services)
+    call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/systemctl', 'stop', *timers)
+    # Do not interrupt dpkg halfway through an already-started upgrade. Refuse
+    # this disposable clone before starting a workload instead.
+    script = '''set -eu
+for unit in apt-daily.timer apt-daily-upgrade.timer apt-daily.service apt-daily-upgrade.service; do
+    test "$(systemctl show --property=LoadState --value "$unit")" = masked
+    case "$(systemctl show --property=ActiveState --value "$unit")" in
+        inactive|failed) ;;
+        *) exit 78 ;;
+    esac
+done
+'''
+    call(config, 'exec', name, '/bin/sh', '-c', script)
+    # Explicit browser dependency installation remains available, but may only
+    # list restart requirements; it must not restart the active guest agent.
+    directory = '/etc/needrestart/conf.d'
+    policy = "$nrconf{restart} = 'l';\n"
+    path = directory + '/99-axon-ci.conf'
+    call(config, 'exec', name, '/usr/bin/sudo', '/bin/mkdir', '-p', directory)
+    call(config, 'exec', '-i', name, '/usr/bin/sudo', '/usr/bin/tee', path, input=policy)
+    if call(config, 'exec', name, '/usr/bin/cat', path).stdout != policy:
+        raise Failure('Guest update restart policy was not written')
+
 def prepare_toolchain(config, name):
     if guest_profile(config) == 'linux':
         if call(config, 'exec', name, '/usr/bin/uname', '-s').stdout.strip() != 'Linux':
@@ -239,6 +272,7 @@ def worker(config, job):
         if time.monotonic() >= deadline:
             raise Failure('Guest startup deadline exceeded')
         time.sleep(1)
+    prepare_updates(config, name)
     prepare_network(config, name)
     prepare_toolchain(config, name)
     process = subprocess.run([config['tart'], 'exec', '-i', name, *request['argv']],

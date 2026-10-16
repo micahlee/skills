@@ -62,6 +62,36 @@ class VMExecutorTests(unittest.TestCase):
                 self.assertEqual(call.call_args.args[1:],('exec','owned','/usr/bin/uname','-s'))
                 self.assertEqual(call.call_count,1)
 
+    def test_guest_background_updates_are_quiesced_before_workload(self):
+        config=dict(self.config,profile='linux');written={}
+        def response(config,*args,**kwargs):
+            if '/usr/bin/tee' in args:written['policy']=kwargs['input']
+            return subprocess.CompletedProcess([],0,written.get('policy','') if '/usr/bin/cat' in args else '', '')
+        with patch.object(vm,'call',side_effect=response) as call:
+            vm.prepare_updates(config,'owned')
+        commands=[c.args[1:] for c in call.call_args_list]
+        self.assertTrue(any('mask' in c and '--runtime' in c and 'apt-daily-upgrade.service' in c for c in commands))
+        self.assertTrue(any('stop' in c and 'apt-daily-upgrade.timer' in c for c in commands))
+        self.assertEqual(written['policy'],"$nrconf{restart} = 'l';\n")
+        with patch.object(vm,'call') as call:
+            vm.prepare_updates(self.config,'owned')
+        call.assert_not_called()
+
+    def test_unverified_update_policy_refuses_job_start(self):
+        with patch.object(vm,'call',return_value=subprocess.CompletedProcess([],0,'','')):
+            with self.assertRaisesRegex(vm.Failure,'update restart policy'):
+                vm.prepare_updates(dict(self.config,profile='linux'),'owned')
+
+    def test_active_upgrade_refuses_workload_without_interrupting_dpkg(self):
+        home=self.root/'home';session=home/'Library/Caches/axon-simulator-runner/session.json'
+        session.parent.mkdir(parents=True)
+        session.write_text(json.dumps({'mode':'host','worker':{'pid':vm.os.getpid()},'supervisorPID':42}))
+        completed=subprocess.CompletedProcess([],0,'','')
+        with patch.object(vm.Path,'home',return_value=home),patch.dict(vm.os.environ,{'AXON_SIMULATOR_SESSION_PID':'42'}),patch.object(vm,'payload',return_value={'argv':['/usr/bin/true'],'stdin':''}),patch.object(vm,'eligible'),patch.object(vm,'write_record'),patch.object(vm,'call',return_value=completed),patch.object(vm,'prepare_updates',side_effect=vm.Failure('active upgrade')),patch.object(vm,'prepare_network') as network,patch.object(vm.subprocess,'Popen'),patch.object(vm.subprocess,'run') as workload:
+            with self.assertRaisesRegex(vm.Failure,'active upgrade'):
+                vm.worker(dict(self.config,profile='linux'),self.job)
+        network.assert_not_called();workload.assert_not_called()
+
     def test_linux_dns_requires_one_explicit_interface_before_changes(self):
         config=dict(self.config,profile='linux')
         for routes in ([],[{'dev':'eth0'},{'dev':'eth1'}],[{'dev':'bad;command'}],{'dev':'eth0'}):
@@ -149,7 +179,7 @@ class VMExecutorTests(unittest.TestCase):
         config=dict(self.config,profile='linux')
         request={'argv':['/usr/bin/true'],'stdin':'synthetic-job-input'}
         completed=subprocess.CompletedProcess([],0,'','')
-        with patch.object(vm.Path,'home',return_value=home),patch.dict(vm.os.environ,{'AXON_SIMULATOR_SESSION_PID':'42'}),patch.object(vm,'payload',return_value=request),patch.object(vm,'eligible') as eligible,patch.object(vm,'write_record') as record,patch.object(vm,'call',return_value=completed) as call,patch.object(vm,'prepare_network') as network,patch.object(vm,'prepare_toolchain') as toolchain,patch.object(vm.subprocess,'Popen') as launch,patch.object(vm.subprocess,'run',return_value=completed):
+        with patch.object(vm.Path,'home',return_value=home),patch.dict(vm.os.environ,{'AXON_SIMULATOR_SESSION_PID':'42'}),patch.object(vm,'payload',return_value=request),patch.object(vm,'eligible') as eligible,patch.object(vm,'write_record') as record,patch.object(vm,'call',return_value=completed) as call,patch.object(vm,'prepare_updates') as updates,patch.object(vm,'prepare_network') as network,patch.object(vm,'prepare_toolchain') as toolchain,patch.object(vm.subprocess,'Popen') as launch,patch.object(vm.subprocess,'run',return_value=completed):
             self.assertEqual(vm.worker(config,self.job),0)
         eligible.assert_called_once_with(config)
         record.assert_called_once_with(self.job,config)
@@ -161,6 +191,7 @@ class VMExecutorTests(unittest.TestCase):
         self.assertIn(vm.BLOCK,command)
         self.assertNotIn('--dir',command)
         self.assertEqual(set(launch.call_args.kwargs['env']),{'HOME','PATH','TART_HOME','TART_NO_AUTO_PRUNE','LANG'})
+        updates.assert_called_once_with(config,name)
         network.assert_called_once_with(config,name)
         toolchain.assert_called_once_with(config,name)
 
