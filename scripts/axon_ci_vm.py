@@ -2,17 +2,21 @@
 """Disposable CI guest executor; no scheduler or paid-job admission."""
 from __future__ import annotations
 import argparse
+import base64
 import hashlib
 import json
 import os
 import re
+import selectors
 from pathlib import Path
 import shutil
 import stat
+import struct
 import subprocess
 import sys
 import time
 import uuid
+import zlib
 
 ROOT = Path.home() / 'Library/Caches/axon-ci-vms'
 HELPER = Path('/Library/PrivilegedHelperTools/com.micahlee.axon-ci/softnet')
@@ -21,7 +25,14 @@ TART_SHA = '6c2032761b3c4363767ac93915728107a756d672da83973b2a0343dc033eda52'
 IMAGE = 'ghcr.io/cirruslabs/macos-golden-gate-xcode@sha256:324ea5656dee8ab9b0a0df70fda2cfed8912051ad0eca3b1b883bf6ddac88fab'
 # A COW clone may overwrite the entire 140-GB disk, not just guest free space.
 # Keep at least 20 GiB for the host even at that maximum write footprint.
-MIN_STOCK_FREE_GIB = 160
+MIN_STOCK_FREE_GIB = 161
+EVIDENCE_ROOT = Path.home() / 'Library/Caches/axon-ci-evidence'
+EVIDENCE_JOB_BYTES = 32 * 1024**2
+EVIDENCE_TOTAL_BYTES = 256 * 1024**2
+EVIDENCE_METADATA_BYTES = 256 * 1024
+EVIDENCE_MAX_FILES = 64
+EVIDENCE_WIRE_BYTES = 48 * 1024**2
+EVIDENCE_EXPORT_SECONDS = 60
 LINUX_IMAGE = 'ghcr.io/cirruslabs/ubuntu@sha256:94dbb9c4b94db827a208fea301cf33eacdcbfb801155b5702b9e2faa52473a2e'
 # The pinned Linux image has a 20-GB virtual disk. Account for a complete
 # clone rewrite and at least 20 GiB left on the physical host.
@@ -121,6 +132,240 @@ def cleanup(job):
         raise Failure('Guest deletion incomplete; admission remains blocked')
     path.unlink()
 
+def private_directory(path, create=False):
+    if create:
+        path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
+        raise Failure('Evidence directory ownership or permissions invalid')
+
+def evidence_usage():
+    if not EVIDENCE_ROOT.exists() and not EVIDENCE_ROOT.is_symlink():
+        return 0, 0
+    private_directory(EVIDENCE_ROOT)
+    total = count = 0
+    for directory in EVIDENCE_ROOT.iterdir():
+        vm_name(directory.name)
+        private_directory(directory)
+        count += 1
+        if count > 64:
+            raise Failure('Evidence job count exceeds limit; release reviewed evidence')
+        files = list(directory.iterdir())
+        if len(files) > EVIDENCE_MAX_FILES + 1:
+            raise Failure('Evidence file count exceeds limit')
+        for path in files:
+            if path.name != 'manifest.json' and not re.fullmatch(r'[a-f0-9]{64}\.png', path.name):
+                raise Failure('Unexpected evidence file; preserve it for inspection')
+            info = path.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600:
+                raise Failure('Evidence file ownership or permissions invalid')
+            total += info.st_size
+            if total > EVIDENCE_TOTAL_BYTES:
+                raise Failure('Evidence content exceeds host limit')
+    return total, count
+
+def evidence_capacity():
+    used, count = evidence_usage()
+    if count >= 64 or used + EVIDENCE_JOB_BYTES + EVIDENCE_METADATA_BYTES > EVIDENCE_TOTAL_BYTES:
+        raise Failure('Evidence capacity full; release only reviewed retired job evidence')
+
+def canonical_png(data):
+    if not data.startswith(b'\x89PNG\r\n\x1a\n') or len(data) > EVIDENCE_JOB_BYTES:
+        raise Failure('Invalid or oversized evidence PNG')
+    position = 8
+    output = bytearray(data[:8])
+    width = height = None
+    image = ended = False
+    while position < len(data):
+        if position + 12 > len(data):
+            raise Failure('Truncated evidence PNG')
+        length = struct.unpack('>I', data[position:position+4])[0]
+        end = position + 12 + length
+        if end > len(data):
+            raise Failure('Truncated evidence PNG chunk')
+        kind = data[position+4:position+8]
+        payload = data[position+8:end-4]
+        if zlib.crc32(kind + payload) & 0xffffffff != struct.unpack('>I', data[end-4:end])[0]:
+            raise Failure('Evidence PNG checksum invalid')
+        if width is None:
+            if kind != b'IHDR' or length != 13:
+                raise Failure('Evidence PNG header missing')
+            width, height = struct.unpack('>II', payload[:8])
+            if not width or not height or max(width, height) > 8192 or width * height > 32_000_000:
+                raise Failure('Evidence PNG dimensions exceed limit')
+        elif kind == b'IHDR':
+            raise Failure('Duplicate evidence PNG header')
+        # Drop textual/EXIF metadata. No guest paths, logs or arbitrary files
+        # cross the boundary; filenames on the host are content hashes only.
+        if kind in (b'IHDR', b'PLTE', b'tRNS', b'IDAT', b'IEND', b'sRGB', b'gAMA', b'cHRM'):
+            output.extend(data[position:end])
+        elif kind[0] & 32 == 0:
+            raise Failure('Unsupported critical evidence PNG chunk')
+        image = image or kind == b'IDAT'
+        position = end
+        if kind == b'IEND':
+            ended = length == 0 and position == len(data)
+            break
+    if not image or not ended:
+        raise Failure('Evidence PNG incomplete')
+    return bytes(output), width, height
+
+# This runs inside the disposable Mac only, after the Actions listener exits.
+# Apple's exporter handles xcresult parsing there; no guest executable is run
+# on the host. The host independently validates all returned bytes and sizes.
+EVIDENCE_COLLECTOR = r'''import pathlib, subprocess, tempfile, json, base64, os, stat
+root=pathlib.Path('/private/tmp/ci-actions/_work/_temp/axon-qualification-results')
+files=[]; total=0
+if root.exists():
+ if root.is_symlink() or not root.is_dir():raise RuntimeError('results root invalid')
+ runs=[]
+ for p in root.iterdir():
+  if p.is_symlink() or not p.is_dir():continue
+  bundle=p/'tests.xcresult'
+  if bundle.is_symlink():raise RuntimeError('result bundle symlink')
+  if bundle.is_dir():runs.append(bundle)
+  if len(runs)>4:raise RuntimeError('too many result bundles')
+ for bundle in sorted(runs):
+  with tempfile.TemporaryDirectory(prefix='axon-png-export-') as temp:
+   subprocess.run(['/usr/bin/xcrun','xcresulttool','export','attachments','--path',str(bundle),'--output-path',temp,'--filter','*.png'],check=True,timeout=20,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+   directory=pathlib.Path(temp); manifest=directory/'manifest.json'
+   if manifest.is_symlink() or manifest.stat().st_size>262144:raise RuntimeError('manifest limit')
+   rows=json.loads(manifest.read_text())
+   if not isinstance(rows,list) or len(rows)>1000:raise RuntimeError('manifest shape')
+   for row in rows:
+    for a in row['attachments']:
+     name=a['exportedFileName']
+     if not isinstance(name,str) or pathlib.Path(name).name!=name or not name.lower().endswith('.png'):raise RuntimeError('attachment filename')
+     path=directory/name; info=path.lstat()
+     if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or info.st_size>33554432:raise RuntimeError('attachment type/size')
+     total+=info.st_size
+     if total>33554432 or len(files)>=64:raise RuntimeError('attachment budget')
+     test=row['testIdentifier']; title=a['suggestedHumanReadableName']
+     if not all(isinstance(s,str) and len(s)<=256 and all(c.isprintable() for c in s) for s in (test,title)):raise RuntimeError('attachment label')
+     files.append({'testIdentifier':test,'name':title,'png':base64.b64encode(path.read_bytes()).decode('ascii')})
+print(json.dumps({'version':1,'files':files},separators=(',',':')))
+'''
+
+def bounded_guest_evidence(config, job):
+    command = [config['tart'], 'exec', vm_name(job), '/usr/bin/python3', '-c', EVIDENCE_COLLECTOR]
+    process = subprocess.Popen(command, env=environment(config), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ)
+    deadline = time.monotonic() + EVIDENCE_EXPORT_SECONDS
+    output = bytearray()
+    try:
+        while True:
+            if time.monotonic() >= deadline:
+                raise Failure('Evidence export deadline exceeded')
+            if not selector.select(min(0.5, max(0, deadline-time.monotonic()))):
+                continue
+            block = os.read(process.stdout.fileno(), 65536)
+            if not block:
+                break
+            output.extend(block)
+            if len(output) > EVIDENCE_WIRE_BYTES:
+                raise Failure('Evidence transport exceeds limit')
+        if process.wait(timeout=max(0.1, deadline-time.monotonic())) != 0:
+            raise Failure('Guest evidence export failed')
+        return bytes(output)
+    finally:
+        selector.close()
+        process.stdout.close()
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+
+def retain_evidence(config, job):
+    vm_name(job)
+    if guest_profile(config) != 'macos':
+        return None
+    evidence_capacity()
+    result = json.loads(bounded_guest_evidence(config, job))
+    if not isinstance(result, dict) or set(result) != {'version', 'files'} or result['version'] != 1 or not isinstance(result['files'], list) or len(result['files']) > EVIDENCE_MAX_FILES:
+        raise Failure('Evidence response invalid')
+    if not result['files']:
+        return None
+    entries = []; images = {}; total = 0
+    for item in result['files']:
+        if not isinstance(item, dict) or set(item) != {'testIdentifier', 'name', 'png'} or not isinstance(item['png'], str) or len(item['png']) > 45 * 1024**2:
+            raise Failure('Evidence entry invalid')
+        if not all(isinstance(item[k], str) and len(item[k]) <= 256 and all(c.isprintable() for c in item[k]) for k in ('testIdentifier', 'name')):
+            raise Failure('Evidence label invalid')
+        data = base64.b64decode(item['png'], validate=True)
+        total += len(data)
+        if total > EVIDENCE_JOB_BYTES:
+            raise Failure('Evidence job content exceeds limit')
+        data, width, height = canonical_png(data)
+        sha = hashlib.sha256(data).hexdigest(); name = sha + '.png'
+        images[name] = data
+        entries.append({'file': name, 'sha256': sha, 'bytes': len(data), 'width': width, 'height': height, 'testIdentifier': item['testIdentifier'], 'name': item['name']})
+    manifest = {'version': 1, 'guest': job, 'createdAt': int(time.time()), 'files': entries}
+    wire = json.dumps(manifest, ensure_ascii=False, indent=2).encode()
+    if len(wire) > EVIDENCE_METADATA_BYTES:
+        raise Failure('Evidence metadata exceeds limit')
+    private_directory(EVIDENCE_ROOT, create=True)
+    destination = EVIDENCE_ROOT / job
+    destination.mkdir(mode=0o700)  # exclusive, never replace another receipt
+    def write(name, data):
+        fd = os.open(destination / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(data); stream.flush(); os.fsync(stream.fileno())
+    for name, data in images.items():
+        write(name, data)
+    write('manifest.json', wire)  # publication marker, after every image is durable
+    for directory in (destination, EVIDENCE_ROOT):
+        fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    return destination
+
+def read_evidence(job):
+    vm_name(job)
+    evidence_usage()
+    directory = EVIDENCE_ROOT / job
+    private_directory(directory)
+    path = directory / 'manifest.json'
+    if path.stat().st_size > EVIDENCE_METADATA_BYTES:
+        raise Failure('Evidence manifest exceeds limit')
+    result = json.loads(path.read_text())
+    if result.get('version') != 1 or result.get('guest') != job or not isinstance(result.get('files'), list) or len(result['files']) > EVIDENCE_MAX_FILES:
+        raise Failure('Evidence manifest identity invalid')
+    names = set()
+    for item in result['files']:
+        name = item['file']
+        if not re.fullmatch(r'[a-f0-9]{64}\.png', name) or name != item['sha256'] + '.png':
+            raise Failure('Evidence filename invalid')
+        data = (directory / name).read_bytes()
+        if len(data) != item['bytes'] or hashlib.sha256(data).hexdigest() != item['sha256']:
+            raise Failure('Evidence content changed')
+        names.add(name)
+    if names != {p.name for p in directory.iterdir() if p.name != 'manifest.json'}:
+        raise Failure('Evidence receipt incomplete')
+    return dict(result, directory=str(directory), manifestPath=str(path))
+
+def release_evidence(job):
+    vm_name(job)
+    if record_path(job).exists():
+        raise Failure('Guest is still owned or active; preserve its evidence')
+    private_directory(EVIDENCE_ROOT)
+    directory = EVIDENCE_ROOT / job
+    private_directory(directory)
+    # Also permits retiring an interrupted, unpublished receipt. Never follow a
+    # link or remove an unrelated file, and never evict another active job.
+    for count, path in enumerate(directory.iterdir(), 1):
+        if count > EVIDENCE_MAX_FILES + 1 or (path.name != 'manifest.json' and not re.fullmatch(r'[a-f0-9]{64}\.png', path.name)):
+            raise Failure('Unexpected evidence file; preserve it for inspection')
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600:
+            raise Failure('Evidence file ownership or permissions invalid')
+    shutil.rmtree(directory)
+
 def eligible(config):
     if sys.platform != 'darwin':
         raise Failure('Guest execution requires a macOS physical host')
@@ -133,6 +378,8 @@ def eligible(config):
     minimum_free = MIN_LINUX_FREE_GIB if guest_profile(config) == 'linux' else MIN_STOCK_FREE_GIB
     if ram < 24 * 1024**3 or shutil.disk_usage(config['tartHome']).free < minimum_free * 1024**3:
         raise Failure('Pinned guest requires 24 GiB RAM and ' + str(minimum_free) + ' GiB free disk')
+    if guest_profile(config) == 'macos':
+        evidence_capacity()
     verify_tart(config)
     verify_helper()
     rows = inventory(config)
@@ -252,6 +499,8 @@ def worker(config, job):
         raise Failure('VM worker requires shared host admission')
     request = payload(sys.stdin)
     eligible(config)
+    if (EVIDENCE_ROOT / job).exists() or (EVIDENCE_ROOT / job).is_symlink():
+        raise Failure('Guest identity already has retained evidence; use a new job identity')
     write_record(job, config)
     name = vm_name(job)
     call(config, 'clone', guest_image(config), name, timeout=60)
@@ -277,15 +526,33 @@ def worker(config, job):
     prepare_toolchain(config, name)
     process = subprocess.run([config['tart'], 'exec', '-i', name, *request['argv']],
                              env=environment(config), input=request['stdin'], text=True)
+    try:
+        saved = retain_evidence(config, job)
+        if saved:
+            print('Retained CI PNG evidence for managed guest ' + job, flush=True)
+    except (Failure, OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+        # A screenshot is an additional review gate, not authority to rewrite
+        # GitHub's test result or leak arbitrary guest diagnostics. Cleanup still
+        # executes normally; missing evidence is never reported as visual proof.
+        print('CI PNG evidence retention unavailable for managed guest ' + job, file=sys.stderr, flush=True)
     return process.returncode
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['run', '_worker', 'cleanup', 'check'])
+    parser.add_argument('mode', choices=['run', '_worker', 'cleanup', 'check', 'evidence', 'release-evidence'])
     parser.add_argument('--config')
     parser.add_argument('--job')
     parser.add_argument('--timeout', type=int, default=3600)
     args = parser.parse_args()
+    if args.mode in ('evidence', 'release-evidence'):
+        if not args.job or args.config:
+            raise Failure('Evidence commands require one exact job and no config')
+        if args.mode == 'release-evidence':
+            release_evidence(args.job)
+            print(json.dumps({'guest': args.job, 'released': True}))
+        else:
+            print(json.dumps(read_evidence(args.job), indent=2))
+        return 0
     if args.mode == 'check':
         if not args.config or args.job is not None:
             raise Failure('Read-only check requires a config and no job identity')

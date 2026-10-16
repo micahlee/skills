@@ -169,3 +169,44 @@ provides `/Applications/Xcode.app` as an alias to the same installation. A
 conflicting existing path or another selected SDK fails admission; nothing is
 replaced or reselected. A Git/Xcode lookup through the canonical path must pass.
 This is guest-only setup; physical host Xcode and sandbox permissions stay intact.
+## Managed CI screenshot evidence
+
+Completed managed Mac guests export PNG attachments from
+`$RUNNER_TEMP/axon-qualification-results/*/tests.xcresult` before teardown.
+Images and a test-name manifest remain private on the physical host at
+`~/Library/Caches/axon-ci-evidence/<guest-UUID>/`. The exporter copies no full
+xcresults, logs, environment files or credential files, and makes no GitHub
+storage upload. Screenshot fixtures must be synthetic; their contents still
+require private review.
+
+Use the UUID from the successful GitHub job's `axon-ci-managed-<UUID>` runner
+name. Verify that job's exact source head and result before inspecting images.
+Wait for normal guest cleanup, then use this read-only command on its host:
+
+```sh
+axon-ci-vm evidence --job <guest-UUID>
+```
+
+It returns the manifest path and content-hashed PNG filenames. Copy only those
+files over the existing verified SSH connection and inspect them locally.
+The guest UUID binds the receipt to the GitHub runner; the test identifier in
+the manifest identifies the screenshot. Image existence does not establish
+product acceptance: inspect the expected synthetic surface itself.
+
+After inspection and the owning PR's merge/closure, release only that job:
+
+```sh
+axon-ci-vm release-evidence --job <guest-UUID>
+```
+
+Release refuses an active owned guest. It also supports safely retiring an
+interrupted receipt after guest cleanup. Evidence is not automatically evicted
+while its task may still need review. The owner must release it at completion.
+Admission preserves existing proof and stops before another Mac job if the
+store cannot reserve its maximum export: 32 MiB and 64 PNGs per job, 256 MiB
+content and 64 retained jobs per host, plus bounded manifest/filesystem overhead.
+Mac admission reserves 161 GiB free to preserve the 20 GiB host margin during
+clone writes and evidence export. No resident exporter or idle guest is added.
+Linux jobs and the paid-overflow storage policy are unchanged. Hosted-cloud
+evidence needs its separately budgeted retention path; this exporter is for
+the managed local guest route.
