@@ -3,6 +3,7 @@ import base64
 import importlib.util
 import json
 import os
+import shutil
 from pathlib import Path
 import struct
 import subprocess
@@ -110,5 +111,56 @@ class EvidenceTests(unittest.TestCase):
         compile(vm.EVIDENCE_COLLECTOR,'guest-evidence','exec')
         self.assertNotIn('GH_TOKEN',vm.EVIDENCE_COLLECTOR)
         self.assertIn("'--filter','*.png'",vm.EVIDENCE_COLLECTOR)
+
+    def test_completion_hook_stages_before_runner_temp_cleanup(self):
+        results=self.root/'runner-temp';results.mkdir()
+        source=results/'synthetic.png';source.write_bytes(png())
+        stage=self.root/'guest-stage'
+        collector='import json,base64,pathlib\nprint(json.dumps({"version":1,"files":[{"testIdentifier":"Synthetic/testPNG","name":"synthetic","png":base64.b64encode(pathlib.Path('+repr(str(source))+').read_bytes()).decode()}]}))'
+        with patch.object(vm,'EVIDENCE_STAGE',str(stage)),patch.object(vm,'EVIDENCE_COLLECTOR',collector):
+            exec(vm.evidence_hook_setup(),{})
+            subprocess.run(['/bin/bash','-e',str(stage/'complete.sh')],check=True)
+            # Matches pinned Actions Runner: completion hooks precede temp cleanup,
+            # and cleanup precedes listener exit and the host's export step.
+            shutil.rmtree(results)
+            output=subprocess.check_output([sys.executable,'-c',vm.evidence_reader()])
+        with patch.object(vm,'bounded_guest_evidence',return_value=output):
+            self.assertIsNotNone(vm.retain_evidence(self.config,self.job))
+        self.assertEqual(vm.read_evidence(self.job)['files'][0]['testIdentifier'],'Synthetic/testPNG')
+        self.assertFalse(results.exists())
+
+    def test_failed_hook_preserves_test_result_and_never_publishes_partial_capture(self):
+        stage=self.root/'guest-stage'
+        with patch.object(vm,'EVIDENCE_STAGE',str(stage)),patch.object(vm,'EVIDENCE_COLLECTOR','raise RuntimeError("synthetic-sensitive-value")'):
+            exec(vm.evidence_hook_setup(),{})
+            result=subprocess.run(['/bin/bash','-e',str(stage/'complete.sh')],capture_output=True,check=True)
+            self.assertEqual(result.stdout+result.stderr,b'')
+            self.assertFalse((stage/'capture.partial').exists())
+            self.assertFalse((stage/'capture.json').exists())
+            reader=subprocess.run([sys.executable,'-c',vm.evidence_reader()],capture_output=True)
+        self.assertNotEqual(reader.returncode,0)
+        self.assertNotIn(b'sensitive',reader.stderr)
+        self.assertEqual((stage/'failed').read_text(),'capture_unavailable')
+
+    def test_hook_is_installed_only_in_mac_guest_with_explicit_runner_environment(self):
+        with patch.object(vm,'call') as call:
+            self.assertEqual(vm.prepare_evidence_hook(dict(self.config,profile='linux'),'synthetic'),[])
+            call.assert_not_called()
+            argv=vm.prepare_evidence_hook(self.config,'synthetic')
+            self.assertEqual(argv,['/usr/bin/env','ACTIONS_RUNNER_HOOK_JOB_COMPLETED='+vm.EVIDENCE_STAGE+'/complete.sh'])
+            self.assertEqual(call.call_args.args[:6],(self.config,'exec','-i','synthetic','/usr/bin/python3','-'))
+            compile(call.call_args.kwargs['input'],'guest-hook-setup','exec')
+
+    def test_hook_export_size_and_deadline_are_bounded(self):
+        for label,collector in [('size','print("x"*4096)'),('deadline','import time;time.sleep(10)')]:
+            stage=self.root/label
+            with patch.object(vm,'EVIDENCE_STAGE',str(stage)),patch.object(vm,'EVIDENCE_COLLECTOR',collector),patch.object(vm,'EVIDENCE_WIRE_BYTES',1024),patch.object(vm,'EVIDENCE_HOOK_SECONDS',0.05 if label=='deadline' else 2):
+                exec(vm.evidence_hook_setup(),{})
+                start=time.monotonic()
+                subprocess.run(['/bin/bash','-e',str(stage/'complete.sh')],capture_output=True,check=True,timeout=3)
+                self.assertLess(time.monotonic()-start,3)
+            self.assertTrue((stage/'failed').exists())
+            self.assertFalse((stage/'capture.json').exists())
+            self.assertFalse((stage/'capture.partial').exists())
 
 if __name__=='__main__':unittest.main()

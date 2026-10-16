@@ -33,6 +33,7 @@ EVIDENCE_METADATA_BYTES = 256 * 1024
 EVIDENCE_MAX_FILES = 64
 EVIDENCE_WIRE_BYTES = 48 * 1024**2
 EVIDENCE_EXPORT_SECONDS = 60
+EVIDENCE_HOOK_SECONDS = 55
 LINUX_IMAGE = 'ghcr.io/cirruslabs/ubuntu@sha256:94dbb9c4b94db827a208fea301cf33eacdcbfb801155b5702b9e2faa52473a2e'
 # The pinned Linux image has a 20-GB virtual disk. Account for a complete
 # clone rewrite and at least 20 GiB left on the physical host.
@@ -220,7 +221,7 @@ def canonical_png(data):
         raise Failure('Evidence PNG incomplete')
     return bytes(output), width, height
 
-# This runs inside the disposable Mac only, after the Actions listener exits.
+# This runs inside the disposable Mac only, before Actions clears RUNNER_TEMP.
 # Apple's exporter handles xcresult parsing there; no guest executable is run
 # on the host. The host independently validates all returned bytes and sizes.
 EVIDENCE_COLLECTOR = r'''import pathlib, subprocess, tempfile, json, base64, os, stat
@@ -256,8 +257,66 @@ if root.exists():
 print(json.dumps({'version':1,'files':files},separators=(',',':')))
 '''
 
+EVIDENCE_STAGE = '/private/tmp/axon-ci-png-stage'
+
+def evidence_hook_setup():
+    # The supported Actions completion hook runs before TempDirectoryManager.
+    # Stage only the same bounded PNG envelope, outside the runner's temp tree.
+    capture = '''import pathlib, subprocess, resource, os
+root=pathlib.Path(STAGE)
+temporary=root/'capture.partial'
+try:
+ resource.setrlimit(resource.RLIMIT_FSIZE,(__WIRE_LIMIT__,__WIRE_LIMIT__))
+ with temporary.open('xb') as output:
+  os.chmod(temporary,0o600)
+  result=subprocess.run(['/usr/bin/python3','-c',COLLECTOR],stdout=output,stderr=subprocess.DEVNULL,timeout=__HOOK_SECONDS__)
+ if result.returncode:raise RuntimeError('capture failed')
+ temporary.replace(root/'capture.json')
+except Exception:
+ temporary.unlink(missing_ok=True)
+ try:
+  (root/'failed').write_text('capture_unavailable')
+  os.chmod(root/'failed',0o600)
+ except OSError:pass
+# Evidence is a separate review gate; preserve the original test result.
+'''.replace('STAGE',repr(EVIDENCE_STAGE)).replace('__WIRE_LIMIT__',str(EVIDENCE_WIRE_BYTES)).replace('__HOOK_SECONDS__',str(EVIDENCE_HOOK_SECONDS)).replace('COLLECTOR',repr(EVIDENCE_COLLECTOR))
+    hook = '#!/bin/sh\nexec /usr/bin/python3 ' + EVIDENCE_STAGE + '/capture.py\n'
+    return "\n".join([
+        'import pathlib, os',
+        'root=pathlib.Path('+repr(EVIDENCE_STAGE)+')',
+        'root.mkdir(mode=0o700)',
+        '(root/"capture.py").write_text('+repr(capture)+')',
+        'os.chmod(root/"capture.py",0o600)',
+        '(root/"complete.sh").write_text('+repr(hook)+')',
+        'os.chmod(root/"complete.sh",0o700)',
+    ])
+
+def evidence_reader():
+    # A non-Actions disposable acceptance fixture may export directly. Real
+    # Actions jobs use the staged envelope after their temp directory is gone.
+    return '''import pathlib, sys, stat
+root=pathlib.Path(STAGE)
+path=root/'capture.json'
+if root.is_symlink() or path.is_symlink():raise RuntimeError('capture path')
+if (root/'failed').exists():raise RuntimeError('capture unavailable')
+if path.exists():
+ info=path.lstat()
+ if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or info.st_size>LIMIT:raise RuntimeError('capture limit')
+ with path.open('rb') as stream:data=stream.read(LIMIT+1)
+ if len(data)>LIMIT:raise RuntimeError('capture limit')
+ sys.stdout.buffer.write(data)
+else:
+ exec(COLLECTOR)
+'''.replace('STAGE',repr(EVIDENCE_STAGE)).replace('LIMIT',str(EVIDENCE_WIRE_BYTES)).replace('COLLECTOR',repr(EVIDENCE_COLLECTOR))
+
+def prepare_evidence_hook(config, name):
+    if guest_profile(config) == 'linux':
+        return []
+    call(config, 'exec', '-i', name, '/usr/bin/python3', '-', input=evidence_hook_setup(), timeout=10)
+    return ['/usr/bin/env', 'ACTIONS_RUNNER_HOOK_JOB_COMPLETED='+EVIDENCE_STAGE+'/complete.sh']
+
 def bounded_guest_evidence(config, job):
-    command = [config['tart'], 'exec', vm_name(job), '/usr/bin/python3', '-c', EVIDENCE_COLLECTOR]
+    command = [config['tart'], 'exec', vm_name(job), '/usr/bin/python3', '-c', evidence_reader()]
     process = subprocess.Popen(command, env=environment(config), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ)
@@ -541,7 +600,8 @@ def worker(config, job):
     prepare_updates(config, name)
     prepare_network(config, name)
     prepare_toolchain(config, name)
-    process = subprocess.run([config['tart'], 'exec', '-i', name, *request['argv']],
+    hook = prepare_evidence_hook(config, name)
+    process = subprocess.run([config['tart'], 'exec', '-i', name, *hook, *request['argv']],
                              env=environment(config), input=request['stdin'], text=True)
     try:
         saved = retain_evidence(config, job)
