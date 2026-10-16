@@ -171,8 +171,19 @@ replaced or reselected. A Git/Xcode lookup through the canonical path must pass.
 This is guest-only setup; physical host Xcode and sandbox permissions stay intact.
 ## Managed CI screenshot evidence
 
-Completed managed Mac guests export PNG attachments from
-`$RUNNER_TEMP/axon-qualification-results/*/tests.xcresult` before teardown.
+Managed Mac guests stage PNG attachments from
+`$RUNNER_TEMP/axon-qualification-results/*/tests.xcresult` in the supported
+`ACTIONS_RUNNER_HOOK_JOB_COMPLETED` hook, before Actions deletes its temporary
+directory. The fixed hook lives outside the runner application directory and
+stages only the bounded image envelope at `/private/tmp/axon-ci-png-stage` inside
+the disposable guest. It has a 55-second deadline and a 48-MiB transport-file
+limit; capture failure preserves the original test result and leaves the
+separate visual-review gate unmet. The host validates and exports that staged
+envelope after the listener exits, then normal VM cleanup proceeds.
+GitHub documents the [completion-hook lifecycle](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/run-scripts);
+the pinned [Runner v2.338.0](https://github.com/actions/runner/blob/v2.338.0/src/Runner.Worker/JobRunner.cs)
+clears temporary files before completing the job. An exporter that waits for
+listener exit without this earlier staging cannot preserve those results.
 Images and a test-name manifest remain private on the physical host at
 `~/Library/Caches/axon-ci-evidence/<guest-UUID>/`. The exporter copies no full
 xcresults, logs, environment files or credential files, and makes no GitHub
