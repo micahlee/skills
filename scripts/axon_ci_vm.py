@@ -188,7 +188,10 @@ def prepare_network(config, name):
         # reconfigures the link. Persist DNS in its existing unit instead.
         settings = '[Network]\nDNS=\nDNS=1.1.1.1\nDNS=8.8.8.8\nDomains=\nDomains=~.\n[DHCPv4]\nUseDNS=no\n[DHCPv6]\nUseDNS=no\n[IPv6AcceptRA]\nUseDNS=no\n'
         call(config, 'exec', name, '/usr/bin/sudo', '/bin/mkdir', '-p', directory)
-        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/tee', directory + '/99-axon-ci-public-dns.conf', input=settings)
+        policy = directory + '/99-axon-ci-public-dns.conf'
+        call(config, 'exec', '-i', name, '/usr/bin/sudo', '/usr/bin/tee', policy, input=settings)
+        if call(config, 'exec', name, '/usr/bin/cat', policy).stdout != settings:
+            raise Failure('Persistent public Linux DNS policy was not written')
         call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/networkctl', 'reload')
         call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/networkctl', 'reconfigure', interface)
         # A fresh boot can retain its already-acquired DHCP DNS until the next

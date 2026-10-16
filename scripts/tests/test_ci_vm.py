@@ -68,10 +68,13 @@ class VMExecutorTests(unittest.TestCase):
             with patch.object(vm,'call',return_value=subprocess.CompletedProcess([],0,json.dumps(routes),'')) as call:
                 with self.assertRaises(vm.Failure):vm.prepare_network(config,'owned')
                 self.assertEqual(call.call_count,1)
+        written={}
         def responses(*args,**kwargs):
             command=args[1:]
             output=''
-            if 'route' in command:output='[{"dev":"enp0s1"}]'
+            if '/usr/bin/tee' in command:written['policy']=kwargs['input']
+            elif '/usr/bin/cat' in command:output=written['policy']
+            elif 'route' in command:output='[{"dev":"enp0s1"}]'
             elif 'status' in command:output='Network File: /run/systemd/network/10-netplan-enp0s1.network\n'
             elif 'dns' in command:output='Link 2 (enp0s1): 1.1.1.1 8.8.8.8\n'
             elif 'domain' in command:output='Link 2 (enp0s1): ~.\n'
@@ -80,6 +83,7 @@ class VMExecutorTests(unittest.TestCase):
             vm.prepare_network(config,'owned')
             writes=[c for c in call.call_args_list if '/usr/bin/tee' in c.args]
             self.assertEqual(len(writes),1)
+            self.assertEqual(writes[0].args[1:4],('exec','-i','owned'))
             self.assertEqual(writes[0].args[-1],'/etc/systemd/network/10-netplan-enp0s1.network.d/99-axon-ci-public-dns.conf')
             self.assertIn('[DHCPv4]\nUseDNS=no',writes[0].kwargs['input'])
             self.assertIn('[DHCPv6]\nUseDNS=no',writes[0].kwargs['input'])
@@ -91,7 +95,9 @@ class VMExecutorTests(unittest.TestCase):
         state={'dns':'192.168.64.129','domain':''}
         def response(config,*args,**kwargs):
             output=''
-            if 'route' in args:output='[{"dev":"enp0s1"}]'
+            if '/usr/bin/tee' in args:state['policy']=kwargs['input']
+            elif '/usr/bin/cat' in args:output=state['policy']
+            elif 'route' in args:output='[{"dev":"enp0s1"}]'
             elif 'status' in args:output='Network File: /run/systemd/network/10-netplan-enp0s1.network'
             elif 'dns' in args:
                 if '/usr/bin/sudo' in args:state['dns']=' '.join(args[-2:])
@@ -102,7 +108,8 @@ class VMExecutorTests(unittest.TestCase):
             return subprocess.CompletedProcess([],0,output,'')
         with patch.object(vm,'call',side_effect=response):
             vm.prepare_network(dict(self.config,profile='linux'),'owned')
-        self.assertEqual(state,{'dns':'1.1.1.1 8.8.8.8','domain':'~.'})
+        self.assertEqual(state['dns'],'1.1.1.1 8.8.8.8')
+        self.assertEqual(state['domain'],'~.')
 
     def test_linux_dns_rejects_unowned_unit_paths_before_writing(self):
         for status in ('Network File: /tmp/untrusted.network','Network File: /run/systemd/network/../../bad.network','Network File: /run/systemd/network/a.network\nNetwork File: /run/systemd/network/b.network','no matching unit'):
@@ -112,9 +119,28 @@ class VMExecutorTests(unittest.TestCase):
                 self.assertEqual(call.call_count,2)
 
     def test_linux_dns_readback_refuses_private_dhcp_gateway(self):
-        replies=[subprocess.CompletedProcess([],0,x,'') for x in ['[{"dev":"enp0s1"}]','Network File: /run/systemd/network/10-netplan-enp0s1.network','','','','','','','Link 2 (enp0s1): 192.168.64.129','Link 2 (enp0s1): ~.']]
-        with patch.object(vm,'call',side_effect=replies),patch.object(vm.time,'monotonic',side_effect=[0,11]):
+        policy=[]
+        def response(config,*args,**kwargs):
+            output=''
+            if 'route' in args:output='[{"dev":"enp0s1"}]'
+            elif 'status' in args:output='Network File: /run/systemd/network/test.network'
+            elif '/usr/bin/tee' in args:policy.append(kwargs['input'])
+            elif '/usr/bin/cat' in args:output=policy[0]
+            elif 'dns' in args:output='Link 2: 192.168.64.129'
+            elif 'domain' in args:output='Link 2: ~.'
+            return subprocess.CompletedProcess([],0,output,'')
+        with patch.object(vm,'call',side_effect=response),patch.object(vm.time,'monotonic',side_effect=[0,11]):
             with self.assertRaisesRegex(vm.Failure,'Persistent public Linux DNS'):vm.prepare_network(dict(self.config,profile='linux'),'owned')
+
+    def test_empty_transported_policy_stops_before_link_reconfiguration(self):
+        calls=[]
+        def response(config,*args,**kwargs):
+            calls.append(args)
+            output='[{"dev":"enp0s1"}]' if 'route' in args else 'Network File: /run/systemd/network/test.network' if 'status' in args else ''
+            return subprocess.CompletedProcess([],0,output,'')
+        with patch.object(vm,'call',side_effect=response):
+            with self.assertRaisesRegex(vm.Failure,'policy was not written'):vm.prepare_network(dict(self.config,profile='linux'),'owned')
+        self.assertFalse(any('reconfigure' in args for args in calls))
 
     def test_linux_worker_keeps_shared_ownership_isolation_and_small_resources(self):
         home=self.root/'home';session=home/'Library/Caches/axon-simulator-runner/session.json'
