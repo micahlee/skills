@@ -150,10 +150,9 @@ def evidence_usage():
         count += 1
         if count > 64:
             raise Failure('Evidence job count exceeds limit; release reviewed evidence')
-        files = list(directory.iterdir())
-        if len(files) > EVIDENCE_MAX_FILES + 1:
-            raise Failure('Evidence file count exceeds limit')
-        for path in files:
+        for file_count, path in enumerate(directory.iterdir(), 1):
+            if file_count > EVIDENCE_MAX_FILES + 1:
+                raise Failure('Evidence file count exceeds limit')
             if path.name != 'manifest.json' and not re.fullmatch(r'[a-f0-9]{64}\.png', path.name):
                 raise Failure('Unexpected evidence file; preserve it for inspection')
             info = path.lstat()
@@ -334,16 +333,23 @@ def read_evidence(job):
     if path.stat().st_size > EVIDENCE_METADATA_BYTES:
         raise Failure('Evidence manifest exceeds limit')
     result = json.loads(path.read_text())
-    if result.get('version') != 1 or result.get('guest') != job or not isinstance(result.get('files'), list) or len(result['files']) > EVIDENCE_MAX_FILES:
+    if not isinstance(result, dict) or result.get('version') != 1 or result.get('guest') != job or not isinstance(result.get('files'), list) or len(result['files']) > EVIDENCE_MAX_FILES:
         raise Failure('Evidence manifest identity invalid')
     names = set()
     for item in result['files']:
+        if not isinstance(item, dict) or not isinstance(item.get('file'), str) or not isinstance(item.get('sha256'), str) or not isinstance(item.get('bytes'), int) or not 0 < item['bytes'] <= EVIDENCE_JOB_BYTES:
+            raise Failure('Evidence entry invalid')
         name = item['file']
         if not re.fullmatch(r'[a-f0-9]{64}\.png', name) or name != item['sha256'] + '.png':
             raise Failure('Evidence filename invalid')
+        if (directory / name).stat().st_size != item['bytes']:
+            raise Failure('Evidence size changed')
         data = (directory / name).read_bytes()
         if len(data) != item['bytes'] or hashlib.sha256(data).hexdigest() != item['sha256']:
             raise Failure('Evidence content changed')
+        canonical, width, height = canonical_png(data)
+        if canonical != data or width != item.get('width') or height != item.get('height'):
+            raise Failure('Evidence PNG representation changed')
         names.add(name)
     if names != {p.name for p in directory.iterdir() if p.name != 'manifest.json'}:
         raise Failure('Evidence receipt incomplete')
