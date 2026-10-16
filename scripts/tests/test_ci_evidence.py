@@ -58,6 +58,14 @@ class EvidenceTests(unittest.TestCase):
     def test_png_metadata_is_removed_without_changing_pixels(self):
         receipt=self.retain(png(metadata=True));image=vm.read_evidence(self.job)['files'][0]
         self.assertEqual((receipt/image['file']).read_bytes(),png())
+    def test_color_profile_is_preserved_but_decompression_is_bounded(self):
+        original=png();prefix=original[:33];suffix=original[33:]
+        image=prefix+chunk(b'iCCP',b'synthetic-profile\x00\x00'+zlib.compress(b'synthetic-color-profile'))+suffix
+        self.assertEqual(vm.canonical_png(image)[0],image)
+        bomb=prefix+chunk(b'iCCP',b'synthetic-profile\x00\x00'+zlib.compress(b'x'*(1024**2+1)))+suffix
+        with self.assertRaisesRegex(vm.Failure,'profile exceeds'):
+            vm.canonical_png(bomb)
+
     def test_invalid_or_oversized_images_fail_before_host_publication(self):
         for data in [b'not-png',png(width=9000),png()[:-1],png()[:40]+b'corruption'+png()[40:]]:
             with self.assertRaises(vm.Failure):self.retain(data)

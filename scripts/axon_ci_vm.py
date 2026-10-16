@@ -196,7 +196,18 @@ def canonical_png(data):
             raise Failure('Duplicate evidence PNG header')
         # Drop textual/EXIF metadata. No guest paths, logs or arbitrary files
         # cross the boundary; filenames on the host are content hashes only.
-        if kind in (b'IHDR', b'PLTE', b'tRNS', b'IDAT', b'IEND', b'sRGB', b'gAMA', b'cHRM'):
+        if kind == b'iCCP':
+            split = payload.find(b'\0')
+            if not 1 <= split <= 79 or len(payload) <= split + 2 or payload[split+1] != 0:
+                raise Failure('Evidence PNG color profile invalid')
+            decoder = zlib.decompressobj()
+            try:
+                profile = decoder.decompress(payload[split+2:], 1024**2 + 1)
+            except zlib.error:
+                raise Failure('Evidence PNG color profile invalid') from None
+            if len(profile) > 1024**2 or not decoder.eof or decoder.unconsumed_tail or decoder.unused_data:
+                raise Failure('Evidence PNG color profile exceeds limit')
+        if kind in (b'IHDR', b'PLTE', b'tRNS', b'IDAT', b'IEND', b'sRGB', b'gAMA', b'cHRM', b'iCCP'):
             output.extend(data[position:end])
         elif kind[0] & 32 == 0:
             raise Failure('Unsupported critical evidence PNG chunk')
