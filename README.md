@@ -94,3 +94,33 @@ Install a single skill from this repo with the Codex skill installer:
 ```sh
 scripts/install-skill-from-github.py --repo micahlee/skills --path skills/worship-leading/song-block
 ```
+
+### Nightly release artifact retirement
+
+`scripts/axon_release_retirement.py` previews retirement of sealed artifacts in
+`~/projects/axon-release-production-prep/{installation-candidates,installation-derivations,production-candidates}`.
+`--apply` enables retirement. Defaults are a 14-day minimum age and at most 30 new
+artifacts per run. Candidates require completed Engineering Hub issues and no
+references from registered Axon resources, startup configuration, process
+arguments, open files, retained runtime records, or other sealed artifacts.
+Artifacts deferred by the limit retain their dependency protection. Unknown
+manifests, unavailable reads, symlinks, recent writes, repositories and possible
+persistent data prevent retirement. The job does not touch the Go cache.
+
+Metadata is copied and checksum-verified before a fresh eligibility check.
+A receipt-bound rename to `.retirement-staging` precedes deletion, allowing an
+interrupted deletion to resume without touching unrelated directories. Manifests,
+configuration, provenance, metadata checksums, receipts and run reports remain in
+`~/.local/state/axon-release-retirement/`. No metadata is omitted because of size.
+The job stops when a required observation fails and never logs process arguments,
+resource bodies, issue bodies or credentials.
+
+Install from a clean checkout equal to freshly fetched `origin/main`:
+
+```sh
+python3 scripts/install_release_retirement.py
+```
+
+The installer enforces source provenance and registers a launchd job for 03:45
+local time, after the development-output cleanup at 03:30. Preview with
+`~/.local/bin/axon-release-retirement`; the installed nightly job uses `--apply`.
