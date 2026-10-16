@@ -179,8 +179,27 @@ def prepare_network(config, name):
                 or not isinstance(routes[0].get('dev'), str) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,32}', routes[0]['dev'])):
             raise Failure('Expected one explicit Linux default-route interface')
         interface = routes[0]['dev']
-        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/resolvectl', 'dns', interface, '1.1.1.1', '8.8.8.8')
-        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/resolvectl', 'domain', interface, '~.')
+        status = call(config, 'exec', name, '/usr/bin/networkctl', 'status', interface, '--no-pager').stdout
+        units = re.findall(r'^\s*Network File:\s+/(?:run|etc|usr/lib)/systemd/network/([A-Za-z0-9_-][A-Za-z0-9_.-]{0,120}\.network)\s*$', status, re.MULTILINE)
+        if len(units) != 1:
+            raise Failure('Expected one explicit networkd unit for the Linux interface')
+        directory = '/etc/systemd/network/' + units[0] + '.d'
+        # Runtime resolvectl settings are lost when DHCP or package setup
+        # reconfigures the link. Persist DNS in its existing unit instead.
+        settings = '[Network]\nDNS=\nDNS=1.1.1.1\nDNS=8.8.8.8\nDomains=\nDomains=~.\n[DHCPv4]\nUseDNS=no\n[DHCPv6]\nUseDNS=no\n[IPv6AcceptRA]\nUseDNS=no\n'
+        call(config, 'exec', name, '/usr/bin/sudo', '/bin/mkdir', '-p', directory)
+        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/tee', directory + '/99-axon-ci-public-dns.conf', input=settings)
+        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/networkctl', 'reload')
+        call(config, 'exec', name, '/usr/bin/sudo', '/usr/bin/networkctl', 'reconfigure', interface)
+        deadline = time.monotonic() + 10
+        while True:
+            dns = call(config, 'exec', name, '/usr/bin/resolvectl', 'dns', interface).stdout.split(':', 1)[-1].split()
+            domains = call(config, 'exec', name, '/usr/bin/resolvectl', 'domain', interface).stdout.split(':', 1)[-1].split()
+            if sorted(dns) == ['1.1.1.1', '8.8.8.8'] and domains == ['~.']:
+                break
+            if time.monotonic() >= deadline:
+                raise Failure('Persistent public Linux DNS configuration unavailable')
+            time.sleep(0.25)
     else:
         call(config, 'exec', name, '/usr/bin/sudo', '/usr/sbin/networksetup',
              '-setdnsservers', 'Ethernet', '1.1.1.1', '8.8.8.8')

@@ -68,10 +68,36 @@ class VMExecutorTests(unittest.TestCase):
             with patch.object(vm,'call',return_value=subprocess.CompletedProcess([],0,json.dumps(routes),'')) as call:
                 with self.assertRaises(vm.Failure):vm.prepare_network(config,'owned')
                 self.assertEqual(call.call_count,1)
-        with patch.object(vm,'call',return_value=subprocess.CompletedProcess([],0,'[{"dev":"enp0s1"}]','')) as call:
+        def responses(*args,**kwargs):
+            command=args[1:]
+            output=''
+            if 'route' in command:output='[{"dev":"enp0s1"}]'
+            elif 'status' in command:output='Network File: /run/systemd/network/10-netplan-enp0s1.network\n'
+            elif 'dns' in command:output='Link 2 (enp0s1): 1.1.1.1 8.8.8.8\n'
+            elif 'domain' in command:output='Link 2 (enp0s1): ~.\n'
+            return subprocess.CompletedProcess([],0,output,'')
+        with patch.object(vm,'call',side_effect=responses) as call:
             vm.prepare_network(config,'owned')
-            self.assertEqual(call.call_args_list[1].args[1:],('exec','owned','/usr/bin/sudo','/usr/bin/resolvectl','dns','enp0s1','1.1.1.1','8.8.8.8'))
-            self.assertEqual(call.call_args_list[2].args[1:],('exec','owned','/usr/bin/sudo','/usr/bin/resolvectl','domain','enp0s1','~.'))
+            writes=[c for c in call.call_args_list if '/usr/bin/tee' in c.args]
+            self.assertEqual(len(writes),1)
+            self.assertEqual(writes[0].args[-1],'/etc/systemd/network/10-netplan-enp0s1.network.d/99-axon-ci-public-dns.conf')
+            self.assertIn('[DHCPv4]\nUseDNS=no',writes[0].kwargs['input'])
+            self.assertIn('[DHCPv6]\nUseDNS=no',writes[0].kwargs['input'])
+            self.assertIn('[IPv6AcceptRA]\nUseDNS=no',writes[0].kwargs['input'])
+            self.assertIn('Domains=~.',writes[0].kwargs['input'])
+            self.assertTrue(any('reconfigure' in c.args and c.args[-1]=='enp0s1' for c in call.call_args_list))
+
+    def test_linux_dns_rejects_unowned_unit_paths_before_writing(self):
+        for status in ('Network File: /tmp/untrusted.network','Network File: /run/systemd/network/../../bad.network','Network File: /run/systemd/network/a.network\nNetwork File: /run/systemd/network/b.network','no matching unit'):
+            replies=[subprocess.CompletedProcess([],0,'[{"dev":"enp0s1"}]',''),subprocess.CompletedProcess([],0,status,'')]
+            with patch.object(vm,'call',side_effect=replies) as call:
+                with self.assertRaises(vm.Failure):vm.prepare_network(dict(self.config,profile='linux'),'owned')
+                self.assertEqual(call.call_count,2)
+
+    def test_linux_dns_readback_refuses_private_dhcp_gateway(self):
+        replies=[subprocess.CompletedProcess([],0,x,'') for x in ['[{"dev":"enp0s1"}]','Network File: /run/systemd/network/10-netplan-enp0s1.network','','','','','Link 2 (enp0s1): 192.168.64.129','Link 2 (enp0s1): ~.']]
+        with patch.object(vm,'call',side_effect=replies),patch.object(vm.time,'monotonic',side_effect=[0,11]):
+            with self.assertRaisesRegex(vm.Failure,'Persistent public Linux DNS'):vm.prepare_network(dict(self.config,profile='linux'),'owned')
 
     def test_linux_worker_keeps_shared_ownership_isolation_and_small_resources(self):
         home=self.root/'home';session=home/'Library/Caches/axon-simulator-runner/session.json'
